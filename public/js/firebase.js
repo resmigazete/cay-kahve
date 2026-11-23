@@ -1,10 +1,12 @@
 // Firebase başlatma, oturum yönetimi ve SDK yeniden dışa aktarımları.
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
-import { getAuth, onAuthStateChanged, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+import { initializeApp, deleteApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import {
+  getAuth, onAuthStateChanged, signInAnonymously, createUserWithEmailAndPassword, signOut as fbSignOut
+} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import { firebaseConfig, ADMIN_EMAIL } from './firebase-config.js';
 
-export { signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
+export { signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 export {
   collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
   onSnapshot, query, where, orderBy, serverTimestamp, runTransaction, writeBatch
@@ -19,8 +21,24 @@ export const auth = configured ? getAuth(app) : null;
 export const db = configured ? getFirestore(app) : null;
 
 // Oturum durumu: herkes (sabit kullanıcı / misafir) anonim olarak oturum açar,
-// yönetici ise e-posta + şifre ile giriş yapar ve /admins/{uid} kaydı ile doğrulanır.
-export const session = { user: null, isAdmin: false, error: null, ready: false };
+// yönetici ve görevli e-posta + şifre ile giriş yapar; yönetici /admins/{uid},
+// görevli ise /staff/{uid} (active: true) kaydı ile doğrulanır.
+export const session = { user: null, isAdmin: false, isStaff: false, error: null, ready: false };
+
+// Yönetici oturumunu kapatmadan yeni görevli hesabı açar (ikinci, geçici Firebase app örneği).
+// Yalnızca Auth kullanıcısını oluşturur ve UID döndürür; /staff/{uid} belgesini çağıran yazar.
+export async function createStaffAccount(email, password) {
+  const second = initializeApp(firebaseConfig, 'staff-creator-' + Date.now());
+  try {
+    const a2 = getAuth(second);
+    const cred = await createUserWithEmailAndPassword(a2, email, password);
+    const uid = cred.user.uid;
+    await fbSignOut(a2);
+    return uid;
+  } finally {
+    deleteApp(second).catch(() => {});
+  }
+}
 
 const listeners = new Set();
 let resolveReady;
@@ -50,11 +68,16 @@ if (configured) {
     session.user = u;
     session.error = null;
     session.isAdmin = false;
+    session.isStaff = false;
     if (!u.isAnonymous) {
       try {
         session.isAdmin = (await getDoc(doc(db, 'admins', u.uid))).exists();
+        if (!session.isAdmin) {
+          const st = await getDoc(doc(db, 'staff', u.uid));
+          session.isStaff = st.exists() && st.data().active === true;
+        }
       } catch (e) {
-        console.warn('Yönetici kontrolü yapılamadı', e);
+        console.warn('Yönetici/görevli kontrolü yapılamadı', e);
       }
     }
     session.ready = true;

@@ -18,6 +18,11 @@ HTML + CSS + JavaScript (derleme gerektirmez) · Firebase Authentication · Clou
 - QR kod üretme (oda/alan başına ayrı), PNG indirme, yazdırma. Altında "İçecek Siparişi Vermek İçin Okutunuz" yazar. Siparişte hangi QR'ın kullanıldığı kaydedilir.
 - Raporlar: günlük/kişi/içecek/misafir/haftalık dağılım, en çok tercih edilenler, tarih aralığı filtresi, Excel (.xlsx) dışa aktarma.
 - Ayarlar: sipariş alımını aç/kapat, ses, gün sonu kapanışı.
+- Görevliler: panelden e-posta + şifre ile görevli hesabı açma, pasife alma, silme (Firebase Console'a gitmek gerekmez).
+
+**Görevli ekranı** (çay ocağı görevlisi)
+- Giriş sayfasında "Görevli girişi" ile kendi e-posta ve şifresiyle girer.
+- Yalnızca **Siparişler** sekmesini görür: yeni sipariş sesi, sipariş kartı, durum ilerletme (Hazırlamaya başla → Hazır → Teslim edildi) ve geri alma. Menü, kişi, QR, rapor ve ayarlara erişemez.
 
 ## Kurulum (yaklaşık 15 dakika)
 
@@ -68,13 +73,15 @@ Yayın adresiniz Firebase'de otomatik olarak yetkili alan adıdır. Netlify veya
 | `counters/{dayKey}` | `n` — günlük sipariş numarası sayacı |
 | `settings/app` | `orderingOpen` |
 | `admins/{uid}` | yönetici yetkisi (yalnızca Console'dan eklenir) |
+| `staff/{uid}` | `name`, `email`, `active`, `createdAt` — görevli yetkisi (yönetici panelinden yönetilir) |
 
 Sipariş durumları: `new` → `preparing` → `ready` → `delivered` (veya `cancelled`).
 
 ## Güvenlik modeli
-- Herkes (sabit kullanıcı/misafir) Firebase'e **anonim** oturumla bağlanır; yönetici e-posta+şifre ile girer ve `admins/{uid}` kaydıyla doğrulanır.
+- Herkes (sabit kullanıcı/misafir) Firebase'e **anonim** oturumla bağlanır; yönetici e-posta+şifre ile girer ve `admins/{uid}` kaydıyla, görevli ise `staff/{uid}` kaydıyla doğrulanır.
 - Menü, kişi listesi ve QR kayıtları okunabilir ama **yalnızca yönetici yazabilir**.
-- Sipariş oluşturma: geçerli alanlarla, kendi `ownerUid`'i ile ve sipariş alımı açıkken. Sipariş sahibi yalnızca **kendi** siparişini ve yalnızca **"Yeni"** durumdayken iptal edebilir. Durum değişikliği ve silme yalnızca yöneticidedir.
+- Sipariş oluşturma: geçerli alanlarla, kendi `ownerUid`'i ile ve sipariş alımı açıkken. Sipariş sahibi yalnızca **kendi** siparişini ve yalnızca **"Yeni"** durumdayken iptal edebilir. Sipariş silme yalnızca yöneticidedir.
+- **Görevli** (`staff/{uid}` kaydı var ve `active: true`): tüm siparişleri okuyabilir ve yalnızca `status` ile `times` alanlarını değiştirebilir. Menü, kişi, QR ve ayarları yazamaz; kendi görevli kaydını okuyabilir, başkasınınkini okuyamaz. Pasife alınan görevli anında yetkisiz kalır.
 - Misafirler yönetim verilerine (diğer siparişler, raporlar) erişemez; QR kod yalnızca sipariş ekranını açar.
 
 ## Bilinen sınırlar (bilerek basit tutuldu)
