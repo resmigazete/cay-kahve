@@ -8,6 +8,7 @@ import {
   h, toast, modal, copyText, downloadBlob, loadScript, dayKey, addDays, fmtTime, fmtDay, fmtDayShort,
   minutesBetween, durText, toDate, beep, soundOn, setSound, unlockAudio, resizeImage, avatar
 } from './util.js';
+import { drinkArt } from './drink-art.js';
 import {
   STATUS, FLOW, OPEN_STATUSES, dataOf, sortDrinks, categoryRank, DEFAULT_DRINKS, setOrderStatus
 } from './data.js';
@@ -325,7 +326,7 @@ function menuTab(box) {
 
   function row(d) {
     return h('div', { class: 'item-row' + (d.active === false ? ' off' : '') },
-      h('div', { class: 'ico' }, d.imageUrl ? h('img', { src: d.imageUrl, alt: '' }) : (d.icon || '☕')),
+      h('div', { class: 'ico' }, drinkArt(d, 44)),
       h('div', { class: 'txt' }, h('b', {}, d.name),
         h('span', { class: 'muted small' }, (d.optionChoices?.length ? `${d.optionLabel || 'Seçenek'}: ${d.optionChoices.join(', ')}` : 'Seçenek yok'))),
       h('label', { class: 'switch', title: 'Aktif / Pasif' },
@@ -364,7 +365,7 @@ function drinkForm(d, all) {
     name: h('input', { class: 'input', value: d.name || '', placeholder: 'Örn: Latte', required: true }),
     category: h('input', { class: 'input', value: d.category || '', list: 'cats', placeholder: 'Çay, Kahve, Diğer…' }),
     icon: h('input', { class: 'input', value: d.icon || '', placeholder: 'Emoji, örn: ☕', maxlength: '4' }),
-    imageUrl: h('input', { class: 'input', value: d.imageUrl || '', placeholder: 'https://… (isteğe bağlı)' }),
+    imageUrl: h('input', { class: 'input', value: d.imageUrl && !d.imageUrl.startsWith('data:') ? d.imageUrl : '', placeholder: 'https://… (isteğe bağlı)' }),
     description: h('input', { class: 'input', value: d.description || '', placeholder: 'İsteğe bağlı açıklama' }),
     optionLabel: h('input', { class: 'input', value: d.optionLabel || '', placeholder: 'Örn: Şeker' }),
     optionChoices: h('input', { class: 'input', value: (d.optionChoices || []).join(', '), placeholder: 'Virgülle ayırın: Şekersiz, 1 şeker, 2 şeker' }),
@@ -372,6 +373,26 @@ function drinkForm(d, all) {
     active: h('input', { type: 'checkbox', checked: d.active !== false })
   };
   const cats = h('datalist', { id: 'cats' }, ['Çay', 'Kahve', 'Diğer', ...new Set(all.map((x) => x.category).filter(Boolean))].map((c) => h('option', { value: c })));
+  // Yüklenen fotoğraf (küçültülmüş JPEG) imageUrl alanına veri adresi olarak yazılır.
+  let photo = d.imageUrl && d.imageUrl.startsWith('data:') ? d.imageUrl : '';
+  const preview = h('span', { style: { display: 'inline-flex' } });
+  const renderPreview = () => preview.replaceChildren(drinkArt({
+    name: f.name.value || d.name, category: f.category.value || d.category, icon: f.icon.value, imageUrl: photo || f.imageUrl.value.trim()
+  }, 72));
+  const photoInput = h('input', { type: 'file', accept: 'image/*', style: { display: 'none' } });
+  photoInput.addEventListener('change', async () => {
+    const file = photoInput.files && photoInput.files[0];
+    if (!file) return;
+    try { photo = await resizeImage(file, 280, 0.85); renderPreview(); } catch (err) { errToast(err); }
+    photoInput.value = '';
+  });
+  const photoBtn = h('button', { class: 'btn sm ghost', type: 'button', onclick: () => photoInput.click() }, '📷 Fotoğraf yükle');
+  const clearBtn = h('button', { class: 'btn sm ghost', type: 'button', onclick: () => { photo = ''; f.imageUrl.value = ''; renderPreview(); } }, 'Çizime dön');
+  f.name.addEventListener('input', renderPreview);
+  f.category.addEventListener('input', renderPreview);
+  f.imageUrl.addEventListener('input', renderPreview);
+  renderPreview();
+
   const save = h('button', { class: 'btn big', type: 'submit' }, 'Kaydet');
   const form = h('form', {
     class: 'stack',
@@ -380,7 +401,7 @@ function drinkForm(d, all) {
       const name = f.name.value.trim();
       if (!name) { toast('İçecek adı gerekli', 'err'); return; }
       const data = {
-        name, category: f.category.value.trim() || 'Diğer', icon: f.icon.value.trim(), imageUrl: f.imageUrl.value.trim(),
+        name, category: f.category.value.trim() || 'Diğer', icon: f.icon.value.trim(), imageUrl: photo || f.imageUrl.value.trim(),
         description: f.description.value.trim(), optionLabel: f.optionLabel.value.trim(),
         optionChoices: f.optionChoices.value.split(',').map((s) => s.trim()).filter(Boolean),
         order: Number(f.order.value) || 0, active: f.active.checked
@@ -398,7 +419,10 @@ function drinkForm(d, all) {
     h('div', { class: 'row' },
       h('label', { class: 'field grow' }, 'İkon (emoji)', f.icon),
       h('label', { class: 'field', style: { width: '110px' } }, 'Sıra', f.order)),
-    h('label', { class: 'field' }, 'Görsel adresi (varsa ikonun yerine geçer)', f.imageUrl),
+    h('div', { class: 'field' }, h('span', {}, 'Görünüm'),
+      h('div', { class: 'row', style: { alignItems: 'center', gap: '12px', flexWrap: 'wrap' } }, preview, photoBtn, photoInput, clearBtn),
+      h('span', { class: 'muted small' }, 'Fotoğraf yüklemezseniz içecek adına uygun hazır çizim otomatik gösterilir.')),
+    h('label', { class: 'field' }, 'Ya da görsel adresi (isteğe bağlı)', f.imageUrl),
     h('label', { class: 'field' }, 'Açıklama', f.description),
     h('label', { class: 'field' }, 'Seçenek başlığı (örn: Şeker)', f.optionLabel),
     h('label', { class: 'field' }, 'Seçenekler', f.optionChoices),

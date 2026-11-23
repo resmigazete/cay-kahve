@@ -1,5 +1,6 @@
 // Müşteri tarafı ekranları: ana ekran, kimlik, menü, sepet, onay, siparişlerim.
 import { h, toast, modal, fmtTime, avatar } from './util.js';
+import { drinkArt } from './drink-art.js';
 import {
   db, session, collection, doc, getDoc, onSnapshot, query, where
 } from './firebase.js';
@@ -220,7 +221,7 @@ export function orderView(main, _args, ctx) {
     }
     return h('div', { class: 'drink' + (avail ? '' : ' off') },
       qty && hasOpt ? h('span', { class: 'badge' }, qty) : null,
-      h('div', { class: 'pic' }, d.imageUrl ? h('img', { src: d.imageUrl, alt: '', loading: 'lazy' }) : (d.icon || '☕')),
+      h('div', { class: 'pic' }, drinkArt(d, 84)),
       h('div', { class: 'name' }, d.name),
       d.description ? h('div', { class: 'desc' }, d.description) : null,
       h('div', { class: 'act' }, action));
@@ -287,7 +288,7 @@ export function cartView(main, _args, ctx) {
   function renderLines() {
     if (cart.count() === 0) { location.replace('#/order'); return; }
     linesBox.replaceChildren(...cart.all().map((l) => h('div', { class: 'line' },
-      h('div', { class: 'ico' }, l.icon || '☕'),
+      h('div', { class: 'ico' }, drinkArt({ name: l.name, icon: l.icon, category: l.category }, 44)),
       h('div', { class: 'txt' }, h('b', {}, l.name), l.option ? h('span', {}, `${l.optionLabel ? l.optionLabel + ': ' : ''}${l.option}`) : null),
       h('div', { class: 'stepper' },
         h('button', { 'aria-label': 'Azalt', onclick: () => { cart.setQty(l.key, l.qty - 1); renderLines(); } }, l.qty === 1 ? '🗑' : '−'),
