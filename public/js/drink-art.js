@@ -63,14 +63,48 @@ function cup(liquid, leaf, strongSteam) {
     `<ellipse cx="32" cy="26" rx="18" ry="4" fill="${liquid}" stroke="${OUT}" stroke-width="1.4"/>` + lf;
 }
 
-const DROP = '<path d="M32 8C32 8 17 25 17 38a15 15 0 0 0 30 0C47 25 32 8 32 8Z" fill="#4fb3e8" stroke="#2f8fc4" stroke-width="1.6" stroke-linejoin="round"/>' +
-  '<path d="M24 38c0 5 3 9 7 10" stroke="#fff" stroke-width="2.6" stroke-linecap="round" fill="none" opacity=".75"/>';
+// Su şişesi (pet): mavi kapak, çentikli gövde, damla işaretli etiket
+const WATER_BODY = 'M28 11.5H36C36 15 42 17 42 23V50Q42 54 38 54H26Q22 54 22 50V23C22 17 28 15 28 11.5Z';
+function waterBottle() {
+  const id = 'dg' + (++seq);
+  return `<ellipse cx="32" cy="55" rx="12.5" ry="2.4" fill="${SHADOW}"/>` +
+    `<defs><clipPath id="${id}"><path d="${WATER_BODY}"/></clipPath></defs>` +
+    `<path d="${WATER_BODY}" fill="#fff" fill-opacity=".7"/>` +
+    `<g clip-path="url(#${id})"><rect x="20" y="14" width="24" height="42" fill="#a9dcf3"/><rect x="20" y="14" width="24" height="2.4" fill="#fff" fill-opacity=".35"/>` +
+    '<rect x="20" y="30" width="24" height="11" fill="#fff"/><rect x="20" y="30" width="24" height="1.7" fill="#4fb3e8"/><rect x="20" y="39.3" width="24" height="1.7" fill="#4fb3e8"/>' +
+    '<path d="M32 32.4c0 0-2.7 2.9-2.7 4.5a2.7 2.7 0 0 0 5.4 0c0-1.6-2.7-4.5-2.7-4.5Z" fill="#4fb3e8"/>' +
+    '<path d="M21 46.2q11 2.2 22 0M21 49.4q11 2.2 22 0" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="1.3"/></g>' +
+    `<path d="${WATER_BODY}" fill="none" stroke="#6fa3bd" stroke-width="1.6" stroke-linejoin="round"/>` +
+    '<path d="M25.6 25v4M25.6 41.8v3" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".85"/>' +
+    '<rect x="26" y="9.3" width="12" height="2.4" rx="1.1" fill="#d8edf7" stroke="#6fa3bd" stroke-width="1"/>' +
+    '<rect x="27.4" y="4" width="9.2" height="5.6" rx="1.6" fill="#2f8fc4" stroke="#24739f" stroke-width="1"/>' +
+    '<path d="M29.6 5.2v3.2M32 5.2v3.2M34.4 5.2v3.2" stroke="#fff" stroke-opacity=".4" stroke-width="1" stroke-linecap="round"/>';
+}
+
+// Cam şişe (soda / maden suyu): taç kapak, etiket, kabarcıklar
+const BOTTLE_BODY = 'M28.5 8H35.5V18C35.5 22 42 24 42 31V50Q42 54 38 54H26Q22 54 22 50V31C22 24 28.5 22 28.5 18Z';
+function bottle(liquid = '#bfe6f2') {
+  const id = 'dg' + (++seq);
+  return `<ellipse cx="32" cy="55" rx="13" ry="2.4" fill="${SHADOW}"/>` +
+    `<defs><clipPath id="${id}"><path d="${BOTTLE_BODY}"/></clipPath></defs>` +
+    `<path d="${BOTTLE_BODY}" fill="#fff" fill-opacity=".7"/>` +
+    `<g clip-path="url(#${id})"><rect x="20" y="19" width="24" height="36" fill="${liquid}"/><rect x="20" y="19" width="24" height="2.4" fill="#fff" fill-opacity=".35"/>` +
+    '<rect x="20" y="35" width="24" height="11" fill="#fff"/>' +
+    `<path d="M24.5 39.5q3-3.2 6 0t6 0t6 0" fill="none" stroke="${BRAND}" stroke-width="1.7" stroke-linecap="round"/>` +
+    '<path d="M26 43.4h12" stroke="#b8cfcb" stroke-width="1.5" stroke-linecap="round"/></g>' +
+    '<g fill="#fff" fill-opacity=".85"><circle cx="31" cy="25.5" r="1.1"/><circle cx="35" cy="28.5" r="1.3"/><circle cx="27.6" cy="31" r="1"/><circle cx="32.4" cy="21.4" r=".9"/><circle cx="37.5" cy="32" r=".9"/></g>' +
+    `<path d="${BOTTLE_BODY}" fill="none" stroke="${OUT}" stroke-width="1.6" stroke-linejoin="round"/>` +
+    '<path d="M30.2 10.5v6.5M26.8 31c0-3 1.6-5 2.6-7" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" opacity=".8"/>' +
+    `<rect x="27" y="4" width="10" height="4.6" rx="1.4" fill="${BRAND}" stroke="#0b5e57" stroke-width="1"/>` +
+    '<path d="M29 4.8v3M32 4.8v3M35 4.8v3" stroke="#fff" stroke-opacity=".45" stroke-width="1" stroke-linecap="round"/>';
+}
 
 const TEA = { light: '#f1bf63', normal: '#d9822b', strong: '#a0431a' };
 
 function pick(d) {
   const n = String(d.name || '').toLocaleLowerCase('tr');
   const cat = String(d.category || '').toLocaleLowerCase('tr');
+  if (/soda|maden|mineral/.test(n)) return bottle(/limon/.test(n) ? '#e6f0a0' : '#bfe6f2');
   if (/elma/.test(n)) return teaGlass('#e6a93c', APPLE);
   if (/sultan/.test(n)) return teaGlass('#b52a35', FLOWER);
   if (/türk kahvesi|turk kahvesi/.test(n)) return turkishCoffee();
@@ -79,7 +113,7 @@ function pick(d) {
   if (/yeşil|yesil/.test(n)) return cup('#b7d36a', '#4f9a4a');
   if (/bitki|ihlamur|adaçay|adacay|papatya|kuşburnu|nane|zencefil|kekik|rezene/.test(n)) return cup('#d9b84a', '#5fa35b');
   if (/sıcak su/.test(n)) return cup('#d6edf6', '', true);
-  if (/(^|\s)su$/.test(n)) return DROP;
+  if (/(^|\s)su(yu)?$/.test(n)) return waterBottle();
   if (/demli/.test(n)) return teaGlass(TEA.strong);
   if (/açık|acik/.test(n)) return teaGlass(TEA.light);
   if (/çay|cay/.test(n)) return teaGlass(TEA.normal);
