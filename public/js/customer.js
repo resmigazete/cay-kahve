@@ -144,6 +144,8 @@ export function orderView(main, _args, ctx) {
   const chips = h('div', { class: 'chips' });
   const grid = h('div', { class: 'drinks' });
   const bar = h('div', { class: 'cartbar' });
+  const usual = h('div');
+  let lastOrder = null;
   const isOpen = () => settings.orderingOpen !== false;
 
   // Sabit kullanıcının fotoğrafı yönetici panelinden değişebilir; canlı izlenir.
@@ -161,7 +163,7 @@ export function orderView(main, _args, ctx) {
         avatarSlot,
         h('div', {}, h('div', { class: 'muted' }, id.type === 'guest' ? 'Misafir' : 'Merhaba,'), h('div', { class: 'hello-name' }, id.name))),
       h('a', { class: 'btn sm ghost', href: id.type === 'guest' && id.qrId ? `#/g/${id.qrId}` : '#/who' }, 'Değiştir')),
-    banner, chips, grid
+    banner, usual, chips, grid
   );
   document.body.append(bar);
 
@@ -185,6 +187,26 @@ export function orderView(main, _args, ctx) {
       ? h('a', { class: 'btn big', href: '#/cart' }, `🛒 Sepeti gör (${n} adet) →`)
       : '');
     bar.style.display = n > 0 ? '' : 'none';
+  }
+
+  // "Her zamanki": bu kişinin son (iptal edilmemiş) siparişini tek dokunuşla sepete koyar.
+  function renderUsual() {
+    usual.replaceChildren();
+    if (!lastOrder || !loaded || !isOpen()) return;
+    const lines = [];
+    for (const it of lastOrder.items || []) {
+      const d = drinks.find((x) => x.id === it.drinkId && x.active !== false);
+      if (!d) continue; // menüden kalkmış ya da pasif içecek atlanır
+      const choices = Array.isArray(d.optionChoices) ? d.optionChoices : [];
+      const option = choices.length ? (choices.includes(it.option) ? it.option : choices[0]) : '';
+      lines.push({ d, option, qty: Math.max(1, Math.min(store.MAX_QTY, Number(it.qty) || 1)) });
+    }
+    if (!lines.length) return;
+    const text = lines.map((l) => `${l.qty} × ${l.d.name}${l.option ? ` (${l.option})` : ''}`).join(', ');
+    usual.append(h('button', {
+      class: 'btn big alt usual',
+      onclick: () => { lines.forEach((l) => cart.add(l.d, l.option, l.qty)); location.hash = '#/cart'; }
+    }, h('span', {}, '🔁 Her zamanki'), h('small', {}, text)));
   }
 
   function renderBanner() {
@@ -259,15 +281,25 @@ export function orderView(main, _args, ctx) {
   const unsubDrinks = onSnapshot(collection(db, 'drinks'), (snap) => {
     drinks = snap.docs.map(dataOf);
     loaded = true;
-    renderChips(); refresh();
+    renderChips(); refresh(); renderUsual();
   }, errToast);
   const unsubSettings = onSnapshot(doc(db, 'settings', 'app'), (s) => {
     settings = s.data() || {};
-    renderBanner(); refresh();
+    renderBanner(); refresh(); renderUsual();
   }, () => {});
+  const uid = session.user && session.user.uid;
+  const unsubLast = uid
+    ? onSnapshot(query(collection(db, 'orders'), where('ownerUid', '==', uid)), (snap) => {
+        const mine = snap.docs.map(dataOf).filter((o) => o.status !== 'cancelled'
+          && (id.type === 'user' ? o.userId === id.userId : o.customerType === 'guest' && o.name === id.name));
+        mine.sort((a, b) => (b.createdAt?.toMillis?.() ?? Date.now()) - (a.createdAt?.toMillis?.() ?? Date.now()));
+        lastOrder = mine[0] || null;
+        renderUsual();
+      }, () => {})
+    : () => {};
 
   renderChips(); renderBanner(); refresh();
-  return () => { unsubDrinks(); unsubSettings(); unsubPhoto(); bar.remove(); };
+  return () => { unsubDrinks(); unsubSettings(); unsubPhoto(); unsubLast(); bar.remove(); };
 }
 
 // ============================================================

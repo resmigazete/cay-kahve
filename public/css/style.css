@@ -289,3 +289,7 @@ table.t td:last-child, table.t th:last-child { text-align: right; }
 .order.fresh { animation: flash 1s ease-in-out 3; }
 
 @media print { .topbar, .tabs, .toolbar { display: none; } }
+
+.btn.usual { flex-direction: column; gap: 2px; margin-bottom: 12px; }
+.btn.usual small { font-weight: 500; font-size: .85rem; opacity: .85; }
+.order-top .avatar { margin-right: 2px; }
