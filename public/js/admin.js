@@ -16,6 +16,8 @@ import { drawQr } from './qr.js';
 
 const errToast = (e) => { console.error(e); toast('Hata: ' + (e.code || e.message), 'err', 5000); };
 const baseUrl = () => location.href.split('#')[0];
+// Görevli profil görseli: cinsiyete göre avatar (belirtilmemişse nötr)
+const staffIcon = (g) => (g === 'female' ? '👩‍🍳' : g === 'male' ? '👨‍🍳' : '🧑‍🍳');
 
 export function adminView(main, [tab], ctx) {
   ctx.setTitle('Yönetim', '#/');
@@ -118,6 +120,8 @@ function panel(main, startTab) {
       onclick: () => switchTab(k)
     }, label, k === 'orders' && n > 0 ? h('span', { class: 'cnt' }, n) : null)),
       ...(session.isAdmin ? [] : [
+        h('span', { class: 'muted', style: { alignSelf: 'center', padding: '0 10px', whiteSpace: 'nowrap' } },
+          `${staffIcon(session.staffGender)} ${session.staffName}`),
         h('button', { class: 'tab', onclick: async () => {
           const np = prompt('Yeni şifreniz (en az 6 karakter):');
           if (np == null) return;
@@ -457,6 +461,7 @@ function staffTab(box) {
   const nameInput = h('input', { class: 'input', placeholder: 'Görevli adı', maxlength: '40' });
   const userInput = h('input', { class: 'input', placeholder: 'Kullanıcı adı (örn: mehmet)', maxlength: '30', autocomplete: 'off', autocapitalize: 'none' });
   const passInput = h('input', { class: 'input', type: 'text', placeholder: 'Geçici şifre (en az 6 karakter)', autocomplete: 'off' });
+  const genderSel = h('select', { class: 'input' }, h('option', { value: 'male' }, '👨‍🍳 Erkek'), h('option', { value: 'female' }, '👩‍🍳 Kadın'));
   const addBtn = h('button', { class: 'btn', type: 'submit' }, '+ Görevli ekle');
   const list = h('div', { class: 'list' });
 
@@ -473,7 +478,7 @@ function staffTab(box) {
     addBtn.disabled = true;
     try {
       const uid = await createStaffAccount(staffEmail(username), pass);
-      await setDoc(doc(db, 'staff', uid), { name, username, active: true, createdAt: serverTimestamp() });
+      await setDoc(doc(db, 'staff', uid), { name, username, gender: genderSel.value, active: true, createdAt: serverTimestamp() });
       nameInput.value = ''; userInput.value = ''; passInput.value = '';
       toast('Görevli eklendi', 'ok');
     } catch (err) {
@@ -485,13 +490,18 @@ function staffTab(box) {
 
   box.append(
     h('p', { class: 'muted' }, 'Görevliler kullanıcı adı ve şifreyle girer; yalnızca Siparişler sekmesini görür ve sipariş durumunu değiştirir. Şifreyi kendileri panelden değiştirebilir. Pasife alınan görevli yetkisiz kalır.'),
-    h('form', { class: 'stack', style: { maxWidth: '520px' }, onsubmit: add }, nameInput, userInput, passInput, addBtn),
+    h('form', { class: 'stack', style: { maxWidth: '520px' }, onsubmit: add }, nameInput, userInput, h('label', { class: 'field' }, 'Profil görseli', genderSel), passInput, addBtn),
     list);
 
   return onSnapshot(collection(db, 'staff'), (snap) => {
     const rows = snap.docs.map(dataOf).sort((a, b) => String(a.name).localeCompare(String(b.name), 'tr'));
     list.replaceChildren(...(rows.length ? rows.map((s) => h('div', { class: 'item-row' + (s.active === false ? ' off' : '') },
-      h('div', { class: 'ico' }, '🧑‍🍳'),
+      h('div', {
+        class: 'ico', title: 'Profil görselini değiştir', style: { cursor: 'pointer' },
+        onclick: async () => {
+          try { await updateDoc(doc(db, 'staff', s.id), { gender: s.gender === 'female' ? 'male' : 'female' }); } catch (err) { errToast(err); }
+        }
+      }, staffIcon(s.gender)),
       h('div', { class: 'txt' }, h('b', {}, s.name), h('span', { class: 'muted small' }, s.username || s.email || '')),
       h('label', { class: 'switch', title: 'Aktif / Pasif' },
         h('input', { type: 'checkbox', checked: s.active !== false, onchange: async (e) => {

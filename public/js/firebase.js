@@ -32,7 +32,7 @@ export const db = configured ? getFirestore(app) : null;
 // Oturum durumu: herkes (sabit kullanıcı / misafir) anonim olarak oturum açar,
 // yönetici ve görevli e-posta + şifre ile giriş yapar; yönetici /admins/{uid},
 // görevli ise /staff/{uid} (active: true) kaydı ile doğrulanır.
-export const session = { user: null, isAdmin: false, isStaff: false, error: null, ready: false };
+export const session = { user: null, isAdmin: false, isStaff: false, staffName: '', staffGender: '', error: null, ready: false };
 
 // Yönetici oturumunu kapatmadan yeni görevli hesabı açar (ikinci, geçici Firebase app örneği).
 // Yalnızca Auth kullanıcısını oluşturur ve UID döndürür; /staff/{uid} belgesini çağıran yazar.
@@ -78,12 +78,15 @@ if (configured) {
     session.error = null;
     session.isAdmin = false;
     session.isStaff = false;
+    session.staffName = '';
+    session.staffGender = '';
     if (!u.isAnonymous) {
       try {
         session.isAdmin = (await getDoc(doc(db, 'admins', u.uid))).exists();
         if (!session.isAdmin) {
           const st = await getDoc(doc(db, 'staff', u.uid));
           session.isStaff = st.exists() && st.data().active === true;
+          if (session.isStaff) { session.staffName = st.data().name || ''; session.staffGender = st.data().gender || ''; }
         }
       } catch (e) {
         console.warn('Yönetici/görevli kontrolü yapılamadı', e);
