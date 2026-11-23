@@ -95,10 +95,17 @@ public/
 
 ## GitHub ile otomatik yayın
 
-`main` dalına her gönderimde site Firebase Hosting'e otomatik yayınlanır (`.github/workflows/deploy.yml`).
+`main` dalına her gönderimde (`.github/workflows/deploy.yml`) site Firebase Hosting'e, Firestore kuralları da Firestore'a otomatik yayınlanır. Firebase ayarı koda yazılmaz, secret'tan üretilir.
 
-Tek seferlik ayar (GitHub → Settings → Secrets and variables → Actions → New repository secret):
-1. `FIREBASE_PROJECT_ID`: Firebase proje kimliği.
-2. `FIREBASE_SERVICE_ACCOUNT`: Firebase Console → Proje ayarları → Hizmet hesapları → "Yeni özel anahtar oluştur" ile inen JSON dosyasının **tüm içeriği**.
+Firebase Console'da bir kez yapılacaklar: proje oluşturma, Authentication'da Anonymous + Email/Password'u açma, Firestore'u oluşturma, yönetici kullanıcısı + `admins/{uid}` belgesi.
 
-Firestore güvenlik kurallarını (`firestore.rules`) bu iş akışı yayınlamaz; Console'dan veya `firebase deploy --only firestore:rules` ile ayrıca yayınlayın.
+GitHub → Settings → Secrets and variables → Actions:
+
+| Ad | Tür | Değer |
+|---|---|---|
+| `FIREBASE_PROJECT_ID` | Secret | Proje kimliği |
+| `FIREBASE_WEB_CONFIG` | Secret | Console'daki web uygulaması `firebaseConfig = {...}` nesnesi (süslü parantezler dahil) |
+| `FIREBASE_SERVICE_ACCOUNT` | Secret | Hizmet hesabı JSON anahtarının tüm içeriği (rol: Firebase Admin) |
+| `ADMIN_EMAIL` | Variable (isteğe bağlı) | Yönetici e-postası; doluysa girişte yalnızca şifre sorulur |
+
+Sonra Actions sekmesinden "Firebase'e yayınla" iş akışını çalıştırın.

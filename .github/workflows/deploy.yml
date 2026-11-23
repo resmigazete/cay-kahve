@@ -1,4 +1,4 @@
-name: Firebase Hosting'e yayınla
+name: Firebase'e yayınla
 
 on:
   push:
@@ -8,11 +8,31 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
     steps:
       - uses: actions/checkout@v4
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+
+      - name: Firebase web ayarını yaz
+        env:
+          WEB_CONFIG: ${{ secrets.FIREBASE_WEB_CONFIG }}
+          ADMIN_EMAIL: ${{ vars.ADMIN_EMAIL }}
+        run: |
+          test -n "$WEB_CONFIG" || { echo "FIREBASE_WEB_CONFIG secret'ı boş"; exit 1; }
+          printf 'export const firebaseConfig = %s;\nexport const ADMIN_EMAIL = "%s";\n' "$WEB_CONFIG" "$ADMIN_EMAIL" > public/js/firebase-config.js
+
+      - name: Hosting'e yayınla
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
           channelId: live
+
+      - name: Firestore kurallarını yayınla
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx --yes firebase-tools@13 deploy --only firestore:rules --project "$PROJECT_ID" --non-interactive
+          rm -f "$RUNNER_TEMP/sa.json"
