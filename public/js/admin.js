@@ -255,8 +255,28 @@ function ordersTab(box, P) {
   box.append(
     h('div', { class: 'toolbar' },
       h('button', { class: 'btn sm ghost', onclick: () => { date = P.today(); dateInput.value = date; subscribe(); } }, 'Bugün'),
-      dateInput, soundBtn),
+      dateInput, soundBtn,
+      session.isAdmin ? h('button', { class: 'btn sm ghost', style: { color: 'var(--err)' }, onclick: clearDay }, '🗑 Günü temizle') : null),
     filters, list);
+
+  // Deneme kayıtları için: seçili günün tüm siparişlerini siler (yalnızca yönetici).
+  async function clearDay() {
+    const n = orders.length;
+    if (!n) { toast('Bu günde silinecek sipariş yok', 'ok'); return; }
+    if (!confirm(`${fmtDay(date)} gününün ${n} siparişi KALICI olarak silinecek.\nBu işlem geri alınamaz. Devam edilsin mi?`)) return;
+    const typed = prompt('Onaylamak için SİL yazın:');
+    if (!typed || typed.trim().toLocaleUpperCase('tr') !== 'SİL') { toast('Vazgeçildi'); return; }
+    try {
+      for (let i = 0; i < orders.length; i += 400) {
+        const batch = writeBatch(db);
+        orders.slice(i, i + 400).forEach((o) => batch.delete(doc(db, 'orders', o.id)));
+        await batch.commit();
+      }
+      // Sipariş numarası yeniden 1'den başlasın
+      try { await deleteDoc(doc(db, 'counters', date)); } catch (e) { console.warn(e); }
+      toast(`${n} sipariş silindi`, 'ok');
+    } catch (e) { errToast(e); }
+  }
 
   const FILTERS = [['active', 'Aktif'], ['new', 'Yeni'], ['preparing', 'Hazırlanıyor'], ['ready', 'Hazır'], ['delivered', 'Teslim'], ['cancelled', 'İptal'], ['all', 'Tümü']];
 
@@ -314,7 +334,14 @@ function ordersTab(box, P) {
           onclick: s === 'cancelled'
             ? () => { if (confirm(`#${o.number} numaralı siparişi iptal etmek istiyor musunuz?`)) go('cancelled')(); }
             : go(s)
-        }, STATUS[s].short))));
+        }, STATUS[s].short)),
+        session.isAdmin ? h('button', {
+          class: 'mini danger', title: 'Kalıcı olarak sil',
+          onclick: async () => {
+            if (!confirm(`#${o.number} numaralı sipariş (${o.name}) KALICI olarak silinsin mi?\nBu işlem geri alınamaz.`)) return;
+            try { await deleteDoc(doc(db, 'orders', o.id)); toast('Sipariş silindi', 'ok'); } catch (e) { errToast(e); }
+          }
+        }, '🗑 Sil') : null));
   }
 
   function setOrders(list) {
