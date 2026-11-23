@@ -21,8 +21,10 @@ jobs:
           node -e '
             const fs = require("fs");
             const raw = process.env.WEB_CONFIG || "";
-            const a = raw.indexOf("{"), b = raw.lastIndexOf("}");
-            if (a < 0 || b < a) { console.error("FIREBASE_WEB_CONFIG içinde { ... } bloğu bulunamadı"); process.exit(1); }
+            const k = raw.indexOf("apiKey");
+            const a = k < 0 ? -1 : raw.lastIndexOf("{", k);
+            const b = a < 0 ? -1 : raw.indexOf("}", a);
+            if (a < 0 || b < a) { console.error("FIREBASE_WEB_CONFIG içinde apiKey içeren { ... } bloğu bulunamadı"); process.exit(1); }
             const body = raw.slice(a, b + 1);
             let cfg;
             try { cfg = new Function("return (" + body + ")")(); } catch (e) { console.error("FIREBASE_WEB_CONFIG okunamadı: " + e.message); process.exit(1); }
