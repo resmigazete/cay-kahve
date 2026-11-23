@@ -1,6 +1,6 @@
 // Yönetim paneli: siparişler, menü, kişiler, QR kodlar, raporlar, ayarlar.
 import {
-  auth, db, session, ADMIN_EMAIL,
+  auth, db, session, ADMIN_EMAIL, createStaffAccount, sendPasswordResetEmail,
   collection, doc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where,
   serverTimestamp, writeBatch, signInWithEmailAndPassword, signOut
 } from './firebase.js';
@@ -20,7 +20,7 @@ const baseUrl = () => location.href.split('#')[0];
 export function adminView(main, [tab], ctx) {
   ctx.setTitle('Yönetim', '#/');
   ctx.wide(true);
-  if (!session.isAdmin) return loginView(main);
+  if (!session.isAdmin && !session.isStaff) return loginView(main);
   return panel(main, tab || 'orders');
 }
 
@@ -29,10 +29,18 @@ export function adminView(main, [tab], ctx) {
 // ============================================================
 function loginView(main) {
   const notAdmin = session.user && !session.user.isAnonymous;
+  // ADMIN_EMAIL doluysa yönetici yalnızca şifre yazar; görevliler "Görevli girişi" ile e-posta alanını açar.
+  let ownEmail = !ADMIN_EMAIL;
   const email = h('input', { class: 'input', type: 'email', autocomplete: 'username', placeholder: 'E-posta', value: ADMIN_EMAIL });
   const pass = h('input', { class: 'input', type: 'password', autocomplete: 'current-password', placeholder: 'Şifre', required: true });
   const msg = h('div');
   const btn = h('button', { class: 'btn big', type: 'submit' }, 'Giriş yap');
+
+  const emailField = h('label', { class: 'field' }, 'E-posta', email);
+  if (!ownEmail) emailField.style.display = 'none';
+  const staffLink = ADMIN_EMAIL ? h('button', { class: 'btn sm ghost', type: 'button', onclick: () => {
+    ownEmail = true; email.value = ''; emailField.style.display = ''; staffLink.style.display = 'none'; email.focus();
+  } }, 'Görevli girişi') : null;
 
   const form = h('form', {
     class: 'stack', style: { maxWidth: '420px', margin: '20px auto' },
@@ -42,11 +50,11 @@ function loginView(main) {
       btn.disabled = true; btn.textContent = 'Giriş yapılıyor…';
       msg.replaceChildren();
       try {
-        await signInWithEmailAndPassword(auth, (ADMIN_EMAIL || email.value).trim(), pass.value);
+        await signInWithEmailAndPassword(auth, (ownEmail ? email.value : ADMIN_EMAIL).trim(), pass.value);
         // başarılı: oturum dinleyicisi paneli açar (yönetici değilse aşağıdaki uyarı görünür)
         setTimeout(() => {
-          if (!session.isAdmin) {
-            msg.replaceChildren(h('div', { class: 'alert err' }, 'Bu hesap yönetici olarak tanımlı değil. README\'deki "admins" adımına bakın.'));
+          if (!session.isAdmin && !session.isStaff) {
+            msg.replaceChildren(h('div', { class: 'alert err' }, 'Bu hesap yönetici ya da aktif görevli olarak tanımlı değil.'));
             btn.disabled = false; btn.textContent = 'Giriş yap';
           }
         }, 2500);
@@ -61,11 +69,11 @@ function loginView(main) {
     }
   },
     h('div', { style: { textAlign: 'center', fontSize: '3rem' } }, '🔐'),
-    h('h2', { style: { textAlign: 'center' } }, 'Yönetici girişi'),
-    notAdmin ? h('div', { class: 'alert warn' }, 'Mevcut hesap yönetici değil. Farklı bir hesapla giriş yapın.') : null,
-    ADMIN_EMAIL ? null : h('label', { class: 'field' }, 'E-posta', email),
+    h('h2', { style: { textAlign: 'center' } }, 'Yönetici / görevli girişi'),
+    notAdmin ? h('div', { class: 'alert warn' }, 'Mevcut hesap yönetici ya da görevli değil. Farklı bir hesapla giriş yapın.') : null,
+    emailField,
     h('label', { class: 'field' }, 'Şifre', pass),
-    msg, btn);
+    msg, btn, staffLink);
   main.append(form);
 }
 
@@ -74,11 +82,14 @@ function loginView(main) {
 // ============================================================
 const TABS = [
   ['orders', '🧾 Siparişler'], ['menu', '☕ Menü'], ['users', '👥 Kişiler'],
-  ['qr', '🔳 QR Kodlar'], ['reports', '📊 Raporlar'], ['settings', '⚙️ Ayarlar']
+  ['qr', '🔳 QR Kodlar'], ['reports', '📊 Raporlar'], ['staff', '🧑‍🍳 Görevliler'], ['settings', '⚙️ Ayarlar']
 ];
+// Görevli yalnızca Siparişler sekmesini görür (asıl engel firestore.rules'taki isStaff kuralıdır).
+const STAFF_TABS = TABS.filter(([k]) => k === 'orders');
 
 function panel(main, startTab) {
-  let current = TABS.some(([k]) => k === startTab) ? startTab : 'orders';
+  const tabs = session.isAdmin ? TABS : STAFF_TABS;
+  let current = tabs.some(([k]) => k === startTab) ? startTab : 'orders';
   let tabCleanup = null;
   let today = dayKey();
   let todayOrders = [];
@@ -100,10 +111,13 @@ function panel(main, startTab) {
 
   function renderTabs() {
     const n = newCount();
-    tabsBar.replaceChildren(...TABS.map(([k, label]) => h('button', {
+    tabsBar.replaceChildren(...tabs.map(([k, label]) => h('button', {
       class: 'tab' + (k === current ? ' on' : ''),
       onclick: () => switchTab(k)
-    }, label, k === 'orders' && n > 0 ? h('span', { class: 'cnt' }, n) : null)));
+    }, label, k === 'orders' && n > 0 ? h('span', { class: 'cnt' }, n) : null)),
+      ...(session.isAdmin ? [] : [h('button', { class: 'tab', onclick: async () => {
+        try { await signOut(auth); } catch (e) { errToast(e); }
+      } }, '🚪 Çıkış')]));
   }
 
   function switchTab(k) {
@@ -116,7 +130,7 @@ function panel(main, startTab) {
   function mountTab() {
     if (tabCleanup) { try { tabCleanup(); } catch (e) { console.error(e); } tabCleanup = null; }
     body.replaceChildren();
-    const fn = { orders: ordersTab, menu: menuTab, users: usersTab, qr: qrTab, reports: reportsTab, settings: settingsTab }[current];
+    const fn = { orders: ordersTab, menu: menuTab, users: usersTab, qr: qrTab, reports: reportsTab, staff: staffTab, settings: settingsTab }[current];
     tabCleanup = fn(body, P) || null;
   }
 
@@ -422,6 +436,61 @@ function renameUser(u) {
   }, input, h('button', { class: 'btn big', type: 'submit' }, 'Kaydet'));
   const close = modal('Kişi adını düzenle', form);
   setTimeout(() => input.select(), 50);
+}
+
+// ============================================================
+//  GÖREVLİLER (yalnızca yönetici)
+// ============================================================
+function staffTab(box) {
+  const nameInput = h('input', { class: 'input', placeholder: 'Görevli adı', maxlength: '40' });
+  const emailInput = h('input', { class: 'input', type: 'email', placeholder: 'E-posta', autocomplete: 'off' });
+  const passInput = h('input', { class: 'input', type: 'text', placeholder: 'Geçici şifre (en az 6 karakter)', autocomplete: 'off' });
+  const addBtn = h('button', { class: 'btn', type: 'submit' }, '+ Görevli ekle');
+  const list = h('div', { class: 'list' });
+
+  const add = async (e) => {
+    e.preventDefault();
+    const name = nameInput.value.trim();
+    const email = emailInput.value.trim();
+    const pass = passInput.value;
+    if (!name || !email) { toast('Ad ve e-posta gerekli', 'err'); return; }
+    if (pass.length < 6) { toast('Şifre en az 6 karakter olmalı', 'err'); return; }
+    addBtn.disabled = true;
+    try {
+      const uid = await createStaffAccount(email, pass);
+      await setDoc(doc(db, 'staff', uid), { name, email, active: true, createdAt: serverTimestamp() });
+      nameInput.value = ''; emailInput.value = ''; passInput.value = '';
+      toast('Görevli eklendi', 'ok');
+    } catch (err) {
+      if (err.code === 'auth/email-already-in-use') toast('Bu e-posta zaten kayıtlı', 'err', 5000);
+      else errToast(err);
+    }
+    addBtn.disabled = false;
+  };
+
+  box.append(
+    h('p', { class: 'muted' }, 'Görevliler kendi e-posta ve şifreleriyle girer; yalnızca Siparişler sekmesini görür ve sipariş durumunu değiştirir. Pasife alınan görevli girişte yetkisiz kalır.'),
+    h('form', { class: 'stack', style: { maxWidth: '520px' }, onsubmit: add }, nameInput, emailInput, passInput, addBtn),
+    list);
+
+  return onSnapshot(collection(db, 'staff'), (snap) => {
+    const rows = snap.docs.map(dataOf).sort((a, b) => String(a.name).localeCompare(String(b.name), 'tr'));
+    list.replaceChildren(...(rows.length ? rows.map((s) => h('div', { class: 'item-row' + (s.active === false ? ' off' : '') },
+      h('div', { class: 'ico' }, '🧑‍🍳'),
+      h('div', { class: 'txt' }, h('b', {}, s.name), h('span', { class: 'muted small' }, s.email || '')),
+      h('label', { class: 'switch', title: 'Aktif / Pasif' },
+        h('input', { type: 'checkbox', checked: s.active !== false, onchange: async (e) => {
+          try { await updateDoc(doc(db, 'staff', s.id), { active: e.target.checked }); } catch (err) { errToast(err); e.target.checked = !e.target.checked; }
+        } }), h('span', { class: 'slider' })),
+      h('button', { class: 'btn sm ghost', onclick: async () => {
+        if (!s.email) return;
+        try { await sendPasswordResetEmail(auth, s.email); toast('Şifre sıfırlama e-postası gönderildi', 'ok'); } catch (err) { errToast(err); }
+      } }, '🔑 Şifre sıfırla'),
+      h('button', { class: 'icon-btn', 'aria-label': 'Sil', onclick: async () => {
+        if (!confirm(`"${s.name}" görevli listesinden silinsin mi? Hesabın hiçbir yetkisi kalmaz.`)) return;
+        try { await deleteDoc(doc(db, 'staff', s.id)); toast('Silindi', 'ok'); } catch (err) { errToast(err); }
+      } }, '🗑'))) : [h('div', { class: 'empty' }, 'Henüz görevli yok. Yukarıdan ekleyin.')]));
+  }, errToast);
 }
 
 // ============================================================
