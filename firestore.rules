@@ -14,6 +14,13 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    // Görevli: /staff/{uid} belgesi olan ve active == true olan e-posta/şifre kullanıcısı
+    function isStaff() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/staff/$(request.auth.uid))
+        && get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.get('active', false) == true;
+    }
+
     // Sipariş alımı yönetici tarafından kapatılmış mı?
     function orderingOpen() {
       return !exists(/databases/$(database)/documents/settings/app)
@@ -41,6 +48,13 @@ service cloud.firestore {
     match /admins/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
       allow write: if false; // sadece Firebase Console'dan eklenir
+    }
+
+    // ---------- Görevli kayıtları ----------
+    // Görevli kendi kaydını okur (rol kontrolü için), yönetici hepsini okuyup yazar.
+    match /staff/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin();
     }
 
     // ---------- Herkesin okuyabildiği, sadece yöneticinin yazabildiği veriler ----------
@@ -75,15 +89,19 @@ service cloud.firestore {
 
     // ---------- Siparişler ----------
     match /orders/{orderId} {
-      // Yönetici hepsini, diğerleri yalnızca kendi siparişlerini görür
-      allow read: if isAdmin()
+      // Yönetici ve görevli hepsini, diğerleri yalnızca kendi siparişlerini görür
+      allow read: if isAdmin() || isStaff()
         || (signedIn() && resource.data.ownerUid == request.auth.uid);
 
       allow create: if signedIn() && orderingOpen() && validNewOrder();
 
       // Yönetici her şeyi güncelleyebilir.
+      // Görevli yalnızca durumu (status) ve zaman damgalarını (times) değiştirebilir.
       // Sipariş sahibi yalnızca "yeni" durumdaki siparişini iptal edebilir.
       allow update: if isAdmin()
+        || (isStaff()
+            && request.resource.data.status in ['new', 'preparing', 'ready', 'delivered', 'cancelled']
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'times']))
         || (signedIn()
             && resource.data.ownerUid == request.auth.uid
             && resource.data.status == 'new'
