@@ -103,8 +103,9 @@ function panel(main, startTab) {
   const subs = new Set();
 
   const tabsBar = h('div', { class: 'tabs' });
+  const banner = h('button', { class: 'new-banner hidden', type: 'button', onclick: () => { switchTab('orders'); window.scrollTo(0, 0); } });
   const body = h('div');
-  main.append(tabsBar, body);
+  main.append(h('div', { class: 'sticky-head' }, banner, tabsBar), body);
 
   const P = {
     today: () => today,
@@ -114,8 +115,15 @@ function panel(main, startTab) {
 
   function newCount() { return todayOrders.filter((o) => o.status === 'new').length; }
 
+  function renderBanner() {
+    const n = newCount();
+    banner.classList.toggle('hidden', n === 0);
+    banner.textContent = n === 1 ? '🔔 1 yeni sipariş bekliyor' : `🔔 ${n} yeni sipariş bekliyor`;
+  }
+
   function renderTabs() {
     const n = newCount();
+    renderBanner();
     tabsBar.replaceChildren(...tabs.map(([k, label]) => h('button', {
       class: 'tab' + (k === current ? ' on' : ''),
       onclick: () => switchTab(k)
@@ -181,6 +189,14 @@ function panel(main, startTab) {
   }, 60000);
 
   // Tekrarlayan alarm: "Yeni" durumda bekleyen sipariş varken her 30 saniyede bir ses çalar.
+  // Sekme başlığı: bekleyen yeni sipariş varken "🔔 (2) Yeni sipariş" ile asıl başlık arasında gidip gelir.
+  const baseTitle = document.title;
+  let flip = false;
+  const titleTimer = setInterval(() => {
+    const n = newCount();
+    if (n > 0) { flip = !flip; document.title = flip ? `🔔 (${n}) Yeni sipariş` : baseTitle; } else { document.title = baseTitle; }
+  }, 1000);
+
   const alarmTimer = setInterval(() => { if (soundOn() && newCount() > 0) beep(); }, 30000);
 
   // Panel açıkken ekran kararmasın (sipariş kaçmasın). Destek yoksa sessizce atlanır.
@@ -204,6 +220,8 @@ function panel(main, startTab) {
   return () => {
     clearInterval(dayTimer);
     clearInterval(alarmTimer);
+    clearInterval(titleTimer);
+    document.title = baseTitle;
     document.removeEventListener('visibilitychange', onVisible);
     if (wake) { wake.release().catch(() => {}); wake = null; }
     if (unsubToday) unsubToday();
@@ -254,8 +272,10 @@ function ordersTab(box, P) {
       return h('button', { class: 'chip' + (k === filter ? ' on' : ''), onclick: () => { filter = k; render(); } }, label, h('span', { class: 'n' }, n));
     }));
     const shown = orders.filter(matches).sort((a, b) => {
+      const na = a.status === 'new' ? 0 : 1, nb = b.status === 'new' ? 0 : 1;
+      if (na !== nb) return na - nb; // yeni siparişler her zaman en üstte
       const ta = a.createdAt?.toMillis?.() ?? 0, tb = b.createdAt?.toMillis?.() ?? 0;
-      return filter === 'active' ? ta - tb : tb - ta;
+      return filter === 'active' || na === 0 ? ta - tb : tb - ta;
     });
     list.replaceChildren(...(shown.length ? shown.map(orderCard) : [h('div', { class: 'empty' }, 'Bu görünümde sipariş yok.')]));
   }
@@ -269,8 +289,9 @@ function ordersTab(box, P) {
       try { await setOrderStatus(o.id, st); } catch (e) { errToast(e); }
     };
     const late = (o.status === 'new' || o.status === 'preparing') && waiting != null && waiting >= 10;
-    return h('article', { class: `order s-${o.status}` + (fresh.has(o.id) ? ' fresh' : '') + (late ? ' late' : '') },
+    return h('article', { class: `order s-${o.status}` + (fresh.has(o.id) ? ' fresh' : '') + (late ? ' late' : '') + (o.status === 'new' ? ' alert-new' : '') },
       h('div', { class: 'order-top' },
+        o.status === 'new' ? h('span', { class: 'new-badge' }, 'YENİ') : null,
         avatar(o.name, o.customerType === 'user' ? photos[o.userId] : '', 40),
         h('span', { class: 'order-no' }, '#' + o.number),
         h('strong', {}, o.name),
