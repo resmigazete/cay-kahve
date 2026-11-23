@@ -2,11 +2,11 @@
 import {
   auth, db, session, ADMIN_EMAIL, createStaffAccount, staffEmail, normalizeUsername, updatePassword,
   collection, doc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, onSnapshot, query, where,
-  serverTimestamp, writeBatch, signInWithEmailAndPassword, signOut
+  serverTimestamp, writeBatch, signInWithEmailAndPassword, signOut, deleteField, getDoc
 } from './firebase.js';
 import {
   h, toast, modal, copyText, downloadBlob, loadScript, dayKey, addDays, fmtTime, fmtDay, fmtDayShort,
-  minutesBetween, durText, toDate, beep, soundOn, setSound, unlockAudio
+  minutesBetween, durText, toDate, beep, soundOn, setSound, unlockAudio, resizeImage, avatar
 } from './util.js';
 import {
   STATUS, FLOW, OPEN_STATUSES, dataOf, sortDrinks, categoryRank, DEFAULT_DRINKS, setOrderStatus
@@ -413,23 +413,57 @@ function drinkForm(d, all) {
 function usersTab(box) {
   const nameInput = h('input', { class: 'input', placeholder: 'Yeni kişi adı', maxlength: '40' });
   const list = h('div', { class: 'list' });
+  let newPhoto = '';
+  const newPhotoInput = h('input', { type: 'file', accept: 'image/*', style: { display: 'none' } });
+  const newPhotoBtn = h('button', { class: 'btn ghost', type: 'button', onclick: () => newPhotoInput.click() }, '📷 Fotoğraf');
+  newPhotoInput.addEventListener('change', async () => {
+    const f = newPhotoInput.files && newPhotoInput.files[0];
+    if (!f) return;
+    try { newPhoto = await resizeImage(f); newPhotoBtn.textContent = '✅ Fotoğraf seçildi'; } catch (e) { newPhoto = ''; errToast(e); }
+    newPhotoInput.value = '';
+  });
   const add = async () => {
     const name = nameInput.value.trim();
     if (!name) return;
-    try { await addDoc(collection(db, 'users'), { name, createdAt: serverTimestamp() }); nameInput.value = ''; toast('Kişi eklendi', 'ok'); } catch (e) { errToast(e); }
+    try {
+      const data = { name, createdAt: serverTimestamp() };
+      if (newPhoto) data.photo = newPhoto;
+      await addDoc(collection(db, 'users'), data);
+      nameInput.value = ''; newPhoto = ''; newPhotoBtn.textContent = '📷 Fotoğraf';
+      toast('Kişi eklendi', 'ok');
+    } catch (e) { errToast(e); }
   };
   nameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') add(); });
 
+  // Mevcut kişinin fotoğrafını seç / değiştir
+  const pickPhoto = (u) => {
+    const input = h('input', { type: 'file', accept: 'image/*', style: { display: 'none' } });
+    input.addEventListener('change', async () => {
+      const f = input.files && input.files[0];
+      if (!f) return;
+      try {
+        const photo = await resizeImage(f);
+        await updateDoc(doc(db, 'users', u.id), { photo });
+        toast('Fotoğraf kaydedildi', 'ok');
+      } catch (e) { errToast(e); }
+    });
+    input.click();
+  };
+
   box.append(
-    h('p', { class: 'muted' }, 'Sabit kullanıcılar uygulamada kendi adlarını seçerek veya kişisel bağlantılarıyla sipariş verir.'),
-    h('div', { class: 'toolbar' }, nameInput, h('button', { class: 'btn', onclick: add }, '+ Ekle')),
+    h('p', { class: 'muted' }, 'Sabit kullanıcılar uygulamada kendi adlarını seçerek veya kişisel bağlantılarıyla sipariş verir. Fotoğraf eklemek için kişinin simgesine dokunun.'),
+    h('div', { class: 'toolbar' }, nameInput, newPhotoBtn, newPhotoInput, h('button', { class: 'btn', onclick: add }, '+ Ekle')),
     list);
 
   return onSnapshot(collection(db, 'users'), (snap) => {
     const users = snap.docs.map(dataOf).sort((a, b) => String(a.name).localeCompare(String(b.name), 'tr'));
     list.replaceChildren(...(users.length ? users.map((u) => h('div', { class: 'item-row' },
-      h('div', { class: 'ico' }, '👤'),
+      h('div', { class: 'ico' },
+        h('button', { class: 'avatar-btn', type: 'button', title: 'Fotoğraf ekle / değiştir', 'aria-label': 'Fotoğraf ekle veya değiştir', onclick: () => pickPhoto(u) }, avatar(u.name, u.photo, 40))),
       h('div', { class: 'txt' }, h('b', {}, u.name), h('span', { class: 'linkbox' }, `${baseUrl()}#/u/${u.id}`)),
+      u.photo ? h('button', { class: 'icon-btn', 'aria-label': 'Fotoğrafı kaldır', title: 'Fotoğrafı kaldır', onclick: async () => {
+        try { await updateDoc(doc(db, 'users', u.id), { photo: deleteField() }); toast('Fotoğraf kaldırıldı', 'ok'); } catch (e) { errToast(e); }
+      } }, '🖼️✖') : null,
       h('button', { class: 'btn sm ghost', onclick: () => copyText(`${baseUrl()}#/u/${u.id}`) }, '🔗 Bağlantı'),
       h('button', { class: 'icon-btn', 'aria-label': 'Adı düzenle', onclick: () => renameUser(u) }, '✏️'),
       h('button', { class: 'icon-btn', 'aria-label': 'Sil', onclick: async () => {
@@ -478,11 +512,16 @@ function staffTab(box) {
     addBtn.disabled = true;
     try {
       const uid = await createStaffAccount(staffEmail(username), pass);
-      await setDoc(doc(db, 'staff', uid), { name, username, gender: genderSel.value, active: true, createdAt: serverTimestamp() });
-      nameInput.value = ''; userInput.value = ''; passInput.value = '';
-      toast('Görevli eklendi', 'ok');
+      if ((await getDoc(doc(db, 'staff', uid))).exists()) {
+        toast('Bu kullanıcı adı zaten görevli listesinde.', 'err', 5000);
+      } else {
+        await setDoc(doc(db, 'staff', uid), { name, username, gender: genderSel.value, active: true, createdAt: serverTimestamp() });
+        nameInput.value = ''; userInput.value = ''; passInput.value = '';
+        toast('Görevli eklendi', 'ok');
+      }
     } catch (err) {
-      if (err.code === 'auth/email-already-in-use') toast('Bu kullanıcı adı daha önce kullanılmış. Farklı bir ad seçin (örn: ' + username + '2).', 'err', 6000);
+      if (err.code === 'staff/old-account-password') toast('"' + username + '" adıyla daha önce açılmış bir hesap var ve şifresi girdiğinizden farklı. Eski şifreyi yazın ya da farklı bir ad seçin (örn: ' + username + '2).', 'err', 8000);
+      else if (err.code === 'auth/email-already-in-use') toast('Bu kullanıcı adı daha önce kullanılmış. Farklı bir ad seçin (örn: ' + username + '2).', 'err', 6000);
       else errToast(err);
     }
     addBtn.disabled = false;
@@ -508,7 +547,7 @@ function staffTab(box) {
           try { await updateDoc(doc(db, 'staff', s.id), { active: e.target.checked }); } catch (err) { errToast(err); e.target.checked = !e.target.checked; }
         } }), h('span', { class: 'slider' })),
       h('button', { class: 'icon-btn', 'aria-label': 'Sil', onclick: async () => {
-        if (!confirm(`"${s.name}" görevli listesinden silinsin mi? Hesabın hiçbir yetkisi kalmaz.`)) return;
+        if (!confirm(`"${s.name}" görevli listesinden silinsin mi? Hesabın hiçbir yetkisi kalmaz.\n\nNot: Kullanıcı adı rezerve kalır. Aynı adı sonradan yeniden eklemek için hesabın şifresini girmeniz gerekir.`)) return;
         try { await deleteDoc(doc(db, 'staff', s.id)); toast('Silindi', 'ok'); } catch (err) { errToast(err); }
       } }, '🗑'))) : [h('div', { class: 'empty' }, 'Henüz görevli yok. Yukarıdan ekleyin.')]));
   }, errToast);

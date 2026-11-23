@@ -229,6 +229,15 @@ label.field { display: grid; gap: 6px; font-weight: 600; font-size: .95rem; }
 .item-row .txt { flex: 1; min-width: 0; }
 .item-row .txt b { display: block; overflow: hidden; text-overflow: ellipsis; }
 .item-row.off { opacity: .55; }
+.item-row .ico:has(.avatar) { width: auto; }
+
+/* Profil fotoğrafı / baş harf simgesi */
+.avatar { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; border-radius: 50%; object-fit: cover; background: var(--brand); color: #fff; font-weight: 800; line-height: 1; overflow: hidden; vertical-align: middle; }
+.item-row .ico img.avatar { border-radius: 50%; }
+.avatar-btn { padding: 0; border: 0; background: none; cursor: pointer; border-radius: 50%; position: relative; }
+.avatar-btn:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+.hello { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.hello-name { color: #c62828; font-size: 1.3rem; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
 .group-title { margin: 14px 0 6px; font-size: .9rem; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); font-weight: 800; }
 
 .switch { position: relative; display: inline-block; width: 52px; height: 30px; flex: 0 0 auto; }

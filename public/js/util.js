@@ -17,6 +17,41 @@ export function h(tag, props, ...kids) {
   return el;
 }
 
+// ---------- Profil fotoğrafı ----------
+// Seçilen fotoğrafı ortadan kare kırpıp küçültür ve küçük bir JPEG veri adresi (data URL) döndürür.
+// Firestore belgesine doğrudan yazılır (yaklaşık 5-15 KB); ayrı depolama servisi gerekmez.
+export function resizeImage(file, size = 160, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    if (!file || !/^image\//.test(file.type)) { reject(new Error('Lütfen bir fotoğraf seçin')); return; }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const side = Math.min(img.naturalWidth, img.naturalHeight);
+        const sx = (img.naturalWidth - side) / 2;
+        const sy = (img.naturalHeight - side) / 2;
+        const c = document.createElement('canvas');
+        c.width = c.height = size;
+        const g = c.getContext('2d');
+        g.fillStyle = '#fff';
+        g.fillRect(0, 0, size, size);
+        g.drawImage(img, sx, sy, side, side, 0, 0, size, size);
+        resolve(c.toDataURL('image/jpeg', quality));
+      } catch (e) { reject(e); } finally { URL.revokeObjectURL(url); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Fotoğraf okunamadı')); };
+    img.src = url;
+  });
+}
+
+// Yuvarlak avatar: fotoğraf varsa onu, yoksa adın baş harflerini gösterir.
+export function avatar(name, photo, px = 40) {
+  const st = { width: px + 'px', height: px + 'px', fontSize: Math.round(px * 0.4) + 'px' };
+  if (photo) return h('img', { class: 'avatar', src: photo, alt: name || '', style: st });
+  const initials = String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w.charAt(0).toLocaleUpperCase('tr')).join('');
+  return h('span', { class: 'avatar', 'aria-hidden': 'true', style: st }, initials || '?');
+}
+
 // ---------- Tarih / saat ----------
 const p2 = (n) => String(n).padStart(2, '0');
 export function dayKey(d = new Date()) {

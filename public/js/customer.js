@@ -1,5 +1,5 @@
 // Müşteri tarafı ekranları: ana ekran, kimlik, menü, sepet, onay, siparişlerim.
-import { h, toast, modal, fmtTime } from './util.js';
+import { h, toast, modal, fmtTime, avatar } from './util.js';
 import {
   db, session, collection, doc, getDoc, onSnapshot, query, where
 } from './firebase.js';
@@ -59,11 +59,12 @@ export function whoView(main, _args, ctx) {
     list.replaceChildren(...(users.length
       ? users.map((u) => h('button', {
           class: 'btn big alt',
+          style: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' },
           onclick: () => {
             store.setIdentity({ type: 'user', userId: u.id, name: u.name });
             location.hash = '#/order';
           }
-        }, '👤 ' + u.name))
+        }, avatar(u.name, u.photo, 36), u.name))
       : [h('div', { class: 'empty' }, 'Henüz kişi tanımlanmamış. Lütfen yöneticiyle iletişime geçin.')]));
   }, errToast);
 }
@@ -144,9 +145,20 @@ export function orderView(main, _args, ctx) {
   const bar = h('div', { class: 'cartbar' });
   const isOpen = () => settings.orderingOpen !== false;
 
+  // Sabit kullanıcının fotoğrafı yönetici panelinden değişebilir; canlı izlenir.
+  const avatarSlot = h('span', { style: { display: 'inline-flex' } }, avatar(id.name, '', 48));
+  const unsubPhoto = id.type === 'user' && id.userId
+    ? onSnapshot(doc(db, 'users', id.userId), (s) => {
+        const d = s.data() || {};
+        avatarSlot.replaceChildren(avatar(id.name, d.photo, 48));
+      }, () => {})
+    : () => {};
+
   main.append(
     h('div', { class: 'row between', style: { marginBottom: '10px' } },
-      h('div', {}, h('span', { class: 'muted' }, id.type === 'guest' ? 'Misafir: ' : 'Merhaba, '), h('b', {}, id.name)),
+      h('div', { class: 'hello' },
+        avatarSlot,
+        h('div', {}, h('div', { class: 'muted' }, id.type === 'guest' ? 'Misafir' : 'Merhaba,'), h('div', { class: 'hello-name' }, id.name))),
       h('a', { class: 'btn sm ghost', href: id.type === 'guest' && id.qrId ? `#/g/${id.qrId}` : '#/who' }, 'Değiştir')),
     banner, chips, grid
   );
@@ -254,7 +266,7 @@ export function orderView(main, _args, ctx) {
   }, () => {});
 
   renderChips(); renderBanner(); refresh();
-  return () => { unsubDrinks(); unsubSettings(); bar.remove(); };
+  return () => { unsubDrinks(); unsubSettings(); unsubPhoto(); bar.remove(); };
 }
 
 // ============================================================

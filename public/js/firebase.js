@@ -1,7 +1,8 @@
 // Firebase başlatma, oturum yönetimi ve SDK yeniden dışa aktarımları.
 import { initializeApp, deleteApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
 import {
-  getAuth, onAuthStateChanged, signInAnonymously, createUserWithEmailAndPassword, signOut as fbSignOut
+  getAuth, onAuthStateChanged, signInAnonymously, createUserWithEmailAndPassword, signInWithEmailAndPassword as fbSignIn,
+  signOut as fbSignOut
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 import { firebaseConfig, ADMIN_EMAIL } from './firebase-config.js';
@@ -9,7 +10,7 @@ import { firebaseConfig, ADMIN_EMAIL } from './firebase-config.js';
 export { signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js';
 export {
   collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc,
-  onSnapshot, query, where, orderBy, serverTimestamp, runTransaction, writeBatch
+  onSnapshot, query, where, orderBy, serverTimestamp, runTransaction, writeBatch, deleteField
 } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
 
 export { ADMIN_EMAIL };
@@ -36,11 +37,27 @@ export const session = { user: null, isAdmin: false, isStaff: false, staffName: 
 
 // Yönetici oturumunu kapatmadan yeni görevli hesabı açar (ikinci, geçici Firebase app örneği).
 // Yalnızca Auth kullanıcısını oluşturur ve UID döndürür; /staff/{uid} belgesini çağıran yazar.
+// Not: Tarayıcıdan Auth hesabı silinemez; görevli listeden silinse de hesabı Auth'ta kalır.
+// Aynı kullanıcı adı yeniden eklenirse, girilen şifre eski hesabın şifresiyse hesap yeniden
+// kullanılır; değilse 'staff/old-account-password' hatası verilir.
 export async function createStaffAccount(email, password) {
   const second = initializeApp(firebaseConfig, 'staff-creator-' + Date.now());
   try {
     const a2 = getAuth(second);
-    const cred = await createUserWithEmailAndPassword(a2, email, password);
+    let cred;
+    try {
+      cred = await createUserWithEmailAndPassword(a2, email, password);
+    } catch (err) {
+      if (err.code !== 'auth/email-already-in-use') throw err;
+      try {
+        cred = await fbSignIn(a2, email, password);
+      } catch (err2) {
+        if (['auth/invalid-credential', 'auth/wrong-password', 'auth/invalid-login-credentials'].includes(err2.code)) {
+          const e = new Error('Eski hesabın şifresi farklı'); e.code = 'staff/old-account-password'; throw e;
+        }
+        throw err2;
+      }
+    }
     const uid = cred.user.uid;
     await fbSignOut(a2);
     return uid;
