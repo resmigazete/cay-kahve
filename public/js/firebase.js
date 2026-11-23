@@ -14,6 +14,17 @@ export {
 
 export { ADMIN_EMAIL };
 
+// Görevli girişi için kullanıcı adı → arka plandaki e-posta dönüşümü.
+// Firebase Auth e-posta ister; görevli yalnızca kullanıcı adını yazar. Bu adrese hiçbir zaman posta gitmez.
+const TR_ASCII = { 'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u' };
+export function normUsername(s) {
+  return String(s || '').trim().toLocaleLowerCase('tr').replace(/[çğıöşü]/g, (c) => TR_ASCII[c]).replace(/\s+/g, '');
+}
+export const isValidUsername = (u) => /^[a-z0-9._-]{2,20}$/.test(u);
+export function staffEmail(username) {
+  return `${normUsername(username)}@gorevli.${firebaseConfig.authDomain || 'cay-kahve.app'}`;
+}
+
 export const configured = !!firebaseConfig.apiKey && !String(firebaseConfig.apiKey).startsWith('YOUR_');
 
 export const app = configured ? initializeApp(firebaseConfig) : null;
