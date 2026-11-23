@@ -1,5 +1,5 @@
 // Uygulama kabuğu ve yönlendirici (hash tabanlı).
-import { h, unlockAudio } from './util.js';
+import { h, unlockAudio, toast } from './util.js';
 import { configured, whenReady, onSession, session } from './firebase.js';
 import { APP_VERSION, APP_DATE, APP_CREDIT } from './version.js';
 
@@ -8,10 +8,20 @@ const back = h('a', { class: 'back hidden', href: '#/', 'aria-label': 'Geri' }, 
 const title = h('div', { class: 'title' });
 const topbar = h('header', { class: 'topbar' }, back, title);
 const main = h('main', {});
+const offlineBar = h('div', { class: 'offline hidden', role: 'status' }, '⚠ Bağlantı yok, siparişler gecikebilir');
 const footer = h('footer', { class: 'app-footer' },
   h('div', {}, `Sürüm ${APP_VERSION} · ${APP_DATE}`),
   h('div', { class: 'credit' }, APP_CREDIT));
-app.append(topbar, main, footer);
+app.append(topbar, offlineBar, main, footer);
+
+// Bağlantı yok uyarısı (tüm ekranlarda, üst çubuğun altında)
+const paintOffline = () => {
+  offlineBar.classList.toggle('hidden', navigator.onLine);
+  document.body.classList.toggle('is-offline', !navigator.onLine);
+};
+window.addEventListener('offline', paintOffline);
+window.addEventListener('online', () => { paintOffline(); toast('Bağlantı geri geldi', 'ok', 2500); });
+paintOffline();
 
 const ctx = {
   setTitle(t, backHref) {

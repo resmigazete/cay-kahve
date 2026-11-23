@@ -250,6 +250,7 @@ function ordersTab(box, P) {
   const paintSound = () => { soundBtn.textContent = soundOn() ? '🔔 Ses açık' : '🔕 Ses kapalı'; };
   paintSound();
   const filters = h('div', { class: 'chips' });
+  const summary = h('div');
   const list = h('div', { class: 'board' });
 
   box.append(
@@ -257,7 +258,7 @@ function ordersTab(box, P) {
       h('button', { class: 'btn sm ghost', onclick: () => { date = P.today(); dateInput.value = date; subscribe(); } }, 'Bugün'),
       dateInput, soundBtn,
       session.isAdmin ? h('button', { class: 'btn sm ghost', style: { color: 'var(--err)' }, onclick: clearDay }, '🗑 Günü temizle') : null),
-    filters, list);
+    filters, summary, list);
 
   // Deneme kayıtları için: seçili günün tüm siparişlerini siler (yalnızca yönetici).
   async function clearDay() {
@@ -298,6 +299,30 @@ function ordersTab(box, P) {
       return filter === 'active' || na === 0 ? ta - tb : tb - ta;
     });
     list.replaceChildren(...(shown.length ? shown.map(orderCard) : [h('div', { class: 'empty' }, 'Bu görünümde sipariş yok.')]));
+    renderSummary();
+  }
+
+  // Hazırlanacak (yeni + hazırlanıyor) siparişlerin içecek bazında toplamı: ocakta tek seferde hazırlamak için.
+  function renderSummary() {
+    const m = new Map();
+    let total = 0;
+    for (const o of orders) {
+      if (o.status !== 'new' && o.status !== 'preparing') continue;
+      for (const it of o.items || []) {
+        const q = Number(it.qty) || 0;
+        const r = m.get(it.name) || { qty: 0, opts: new Map() };
+        r.qty += q; total += q;
+        if (it.option) r.opts.set(it.option, (r.opts.get(it.option) || 0) + q);
+        m.set(it.name, r);
+      }
+    }
+    if (!m.size) { summary.replaceChildren(); return; }
+    const rows = [...m.entries()].sort((a, b) => b[1].qty - a[1].qty);
+    summary.replaceChildren(h('div', { class: 'sum-card' },
+      h('div', { class: 'sum-title' }, `🧮 Hazırlanacak toplam: ${total} içecek`),
+      h('div', { class: 'sum-list' }, rows.map(([name, r]) => h('div', { class: 'sum-item' },
+        h('b', {}, `${r.qty} × ${name}`),
+        r.opts.size ? h('span', { class: 'sum-opts' }, [...r.opts].map(([k, v]) => `${k} ×${v}`).join(' · ')) : null)))));
   }
 
   function orderCard(o) {
@@ -324,7 +349,10 @@ function ordersTab(box, P) {
       h('div', { class: 'meta' },
         h('span', { class: `status s-${o.status}` }, STATUS[o.status].label),
         late ? h('span', { class: 'late-tag' }, '⚠ Gecikti') : null,
-        waiting != null ? h('span', {}, `⏱ ${durText(waiting)} önce`) : null,
+        waiting != null ? h('span', {
+          class: 'wait' + ((o.status === 'new' || o.status === 'preparing')
+            ? (waiting >= 10 ? ' wait-late' : waiting >= 5 ? ' wait-warn' : ' wait-ok') : '')
+        }, `⏱ ${durText(waiting)} önce`) : null,
         prep != null && o.status !== 'cancelled' ? h('span', {}, `Hazırlık süresi: ${durText(prep)}`) : null),
       h('div', { class: 'actions' },
         next ? h('button', { class: 'btn next' + (next === 'ready' || next === 'delivered' ? ' ok' : ''), onclick: go(next) },
