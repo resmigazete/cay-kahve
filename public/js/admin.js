@@ -12,6 +12,7 @@ import {
   STATUS, FLOW, OPEN_STATUSES, dataOf, sortDrinks, categoryRank, DEFAULT_DRINKS, setOrderStatus
 } from './data.js';
 import { computeStats, itemsText, orderDrinkCount } from './stats.js';
+import { drawQr } from './qr.js';
 
 const errToast = (e) => { console.error(e); toast('Hata: ' + (e.code || e.message), 'err', 5000); };
 const baseUrl = () => location.href.split('#')[0];
@@ -433,10 +434,8 @@ function fitText(g, text, x, y, maxW, size, weight) {
 }
 
 async function qrCanvas(url, label) {
-  if (!window.QRCode) throw new Error('QR kütüphanesi yüklenemedi (internet bağlantısını kontrol edin).');
   const W = 800, H = 980;
-  const qr = document.createElement('canvas');
-  await window.QRCode.toCanvas(qr, url, { width: 680, margin: 1, errorCorrectionLevel: 'M' });
+  const qr = drawQr(document.createElement('canvas'), url, 680, 'M');
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const g = c.getContext('2d');
