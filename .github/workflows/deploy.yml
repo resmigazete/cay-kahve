@@ -18,8 +18,23 @@ jobs:
           WEB_CONFIG: ${{ secrets.FIREBASE_WEB_CONFIG }}
           ADMIN_EMAIL: ${{ vars.ADMIN_EMAIL }}
         run: |
-          test -n "$WEB_CONFIG" || { echo "FIREBASE_WEB_CONFIG secret'ı boş"; exit 1; }
-          printf 'export const firebaseConfig = %s;\nexport const ADMIN_EMAIL = "%s";\n' "$WEB_CONFIG" "$ADMIN_EMAIL" > public/js/firebase-config.js
+          node -e '
+            const fs = require("fs");
+            const raw = process.env.WEB_CONFIG || "";
+            const a = raw.indexOf("{"), b = raw.lastIndexOf("}");
+            if (a < 0 || b < a) { console.error("FIREBASE_WEB_CONFIG içinde { ... } bloğu bulunamadı"); process.exit(1); }
+            const body = raw.slice(a, b + 1);
+            let cfg;
+            try { cfg = new Function("return (" + body + ")")(); } catch (e) { console.error("FIREBASE_WEB_CONFIG okunamadı: " + e.message); process.exit(1); }
+            for (const k of ["apiKey", "authDomain", "projectId", "appId"]) {
+              if (!cfg[k]) { console.error("Eksik alan: " + k); process.exit(1); }
+            }
+            const out = "export const firebaseConfig = " + JSON.stringify(cfg, null, 2) + ";\n" +
+              "export const ADMIN_EMAIL = " + JSON.stringify(process.env.ADMIN_EMAIL || "") + ";\n";
+            fs.writeFileSync("public/js/firebase-config.js", out);
+            console.log("Ayar yazıldı. projectId:", cfg.projectId);
+          '
+          node --input-type=module --check < public/js/firebase-config.js
 
       - name: Hosting'e yayınla
         uses: FirebaseExtended/action-hosting-deploy@v0
