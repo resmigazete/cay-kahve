@@ -98,7 +98,7 @@ window.addEventListener('hashchange', render);
 // Yönetici girişi / çıkışı olduğunda yönetim sayfasını yeniden çiz
 let lastSig = '';
 onSession((s) => {
-  const sig = `${s.user ? s.user.uid : ''}|${s.isAdmin}`;
+  const sig = `${s.user ? s.user.uid : ''}|${s.isAdmin}|${s.isStaff}`;
   if (sig !== lastSig) {
     const first = lastSig === '';
     lastSig = sig;
