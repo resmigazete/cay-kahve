@@ -1,13 +1,17 @@
 // Uygulama kabuğu ve yönlendirici (hash tabanlı).
 import { h, unlockAudio } from './util.js';
 import { configured, whenReady, onSession, session } from './firebase.js';
+import { APP_VERSION, APP_DATE, APP_CREDIT } from './version.js';
 
 const app = document.getElementById('app');
 const back = h('a', { class: 'back hidden', href: '#/', 'aria-label': 'Geri' }, '‹');
 const title = h('div', { class: 'title' });
 const topbar = h('header', { class: 'topbar' }, back, title);
 const main = h('main', {});
-app.append(topbar, main);
+const footer = h('footer', { class: 'app-footer' },
+  h('div', {}, `Sürüm ${APP_VERSION} · ${APP_DATE}`),
+  h('div', { class: 'credit' }, APP_CREDIT));
+app.append(topbar, main, footer);
 
 const ctx = {
   setTitle(t, backHref) {

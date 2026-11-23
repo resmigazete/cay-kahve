@@ -49,8 +49,15 @@ a { color: var(--brand); }
 }
 .topbar .title { font-weight: 700; font-size: 1.1rem; flex: 1; }
 .topbar .brand { font-weight: 800; letter-spacing: .2px; }
-main { max-width: 720px; margin: 0 auto; padding: 16px 14px 120px; }
+#app { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; }
+main { width: 100%; flex: 1 0 auto; max-width: 720px; margin: 0 auto; padding: 16px 14px 16px; }
 main.wide { max-width: 1100px; }
+
+/* Sayfanın en altındaki sürüm bilgisi */
+.app-footer { text-align: center; color: var(--muted); font-size: .8rem; line-height: 1.5; padding: 10px 14px calc(18px + env(safe-area-inset-bottom, 0px)); }
+.app-footer .credit { font-weight: 700; letter-spacing: .2px; }
+/* Sipariş ekranındaki sabit sepet çubuğunun altında kalmasın */
+body:has(.cartbar) .app-footer { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
 
 /* ---------- Butonlar ---------- */
 .btn {
