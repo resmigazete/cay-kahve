@@ -26,7 +26,7 @@ export function homeView(main, _args, ctx) {
     : null;
 
   main.append(
-    banner, who,
+    banner, ...(who ? [who] : []),
     h('div', { class: 'stack' },
       h('a', { class: 'tile primary', href: id ? '#/order' : '#/who' },
         h('span', { class: 'ico' }, '☕'), h('span', {}, 'İçecek siparişi ver', h('small', {}, 'Çay, kahve ve diğer içecekler'))),
