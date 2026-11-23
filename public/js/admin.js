@@ -180,12 +180,32 @@ function panel(main, startTab) {
     if (k !== today) { today = k; todayOrders = []; startToday(); subs.forEach((f) => f([])); }
   }, 60000);
 
+  // Tekrarlayan alarm: "Yeni" durumda bekleyen sipariş varken her 30 saniyede bir ses çalar.
+  const alarmTimer = setInterval(() => { if (soundOn() && newCount() > 0) beep(); }, 30000);
+
+  // Panel açıkken ekran kararmasın (sipariş kaçmasın). Destek yoksa sessizce atlanır.
+  let wake = null;
+  const lockScreen = async () => {
+    try {
+      if ('wakeLock' in navigator && document.visibilityState === 'visible' && !wake) {
+        wake = await navigator.wakeLock.request('screen');
+        wake.addEventListener('release', () => { wake = null; });
+      }
+    } catch { /* yoksay */ }
+  };
+  const onVisible = () => { if (document.visibilityState === 'visible') lockScreen(); };
+  document.addEventListener('visibilitychange', onVisible);
+  lockScreen();
+
   startToday();
   renderTabs();
   mountTab();
 
   return () => {
     clearInterval(dayTimer);
+    clearInterval(alarmTimer);
+    document.removeEventListener('visibilitychange', onVisible);
+    if (wake) { wake.release().catch(() => {}); wake = null; }
     if (unsubToday) unsubToday();
     if (tabCleanup) tabCleanup();
   };
@@ -248,7 +268,8 @@ function ordersTab(box, P) {
     const go = (st) => async () => {
       try { await setOrderStatus(o.id, st); } catch (e) { errToast(e); }
     };
-    return h('article', { class: `order s-${o.status}` + (fresh.has(o.id) ? ' fresh' : '') },
+    const late = (o.status === 'new' || o.status === 'preparing') && waiting != null && waiting >= 10;
+    return h('article', { class: `order s-${o.status}` + (fresh.has(o.id) ? ' fresh' : '') + (late ? ' late' : '') },
       h('div', { class: 'order-top' },
         avatar(o.name, o.customerType === 'user' ? photos[o.userId] : '', 40),
         h('span', { class: 'order-no' }, '#' + o.number),
@@ -261,6 +282,7 @@ function ordersTab(box, P) {
       o.note ? h('div', { class: 'note' }, '📝 ' + o.note) : null,
       h('div', { class: 'meta' },
         h('span', { class: `status s-${o.status}` }, STATUS[o.status].label),
+        late ? h('span', { class: 'late-tag' }, '⚠ Gecikti') : null,
         waiting != null ? h('span', {}, `⏱ ${durText(waiting)} önce`) : null,
         prep != null && o.status !== 'cancelled' ? h('span', {}, `Hazırlık süresi: ${durText(prep)}`) : null),
       h('div', { class: 'actions' },

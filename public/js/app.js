@@ -101,11 +101,20 @@ async function render() {
 window.addEventListener('hashchange', render);
 // Yönetici girişi / çıkışı olduğunda yönetim sayfasını yeniden çiz
 let lastSig = '';
+let stopReady = null;
+function restartReadyWatcher() {
+  if (stopReady) { stopReady(); stopReady = null; }
+  // Yalnızca müşteri (anonim) oturumlarında: kendi siparişi "Hazır" olunca uyar
+  if (session.user && session.user.isAnonymous) {
+    import('./customer.js').then((m) => { if (!stopReady) stopReady = m.startReadyWatcher(); }).catch(() => {});
+  }
+}
 onSession((s) => {
   const sig = `${s.user ? s.user.uid : ''}|${s.isAdmin}|${s.isStaff}`;
   if (sig !== lastSig) {
     const first = lastSig === '';
     lastSig = sig;
+    restartReadyWatcher();
     if (!first && (location.hash || '').startsWith('#/admin')) render();
   }
 });

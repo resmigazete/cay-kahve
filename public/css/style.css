@@ -293,3 +293,6 @@ table.t td:last-child, table.t th:last-child { text-align: right; }
 .btn.usual { flex-direction: column; gap: 2px; margin-bottom: 12px; }
 .btn.usual small { font-weight: 500; font-size: .85rem; opacity: .85; }
 .order-top .avatar { margin-right: 2px; }
+
+.order.late { border-top-color: var(--s-cancelled); border-right-color: var(--s-cancelled); border-bottom-color: var(--s-cancelled); box-shadow: 0 0 0 2px rgba(220,38,38,.25); }
+.late-tag { color: var(--s-cancelled); font-weight: 800; }

@@ -1,5 +1,5 @@
 // Müşteri tarafı ekranları: ana ekran, kimlik, menü, sepet, onay, siparişlerim.
-import { h, toast, modal, fmtTime, avatar } from './util.js';
+import { h, toast, modal, fmtTime, avatar, beep } from './util.js';
 import { drinkArt } from './drink-art.js';
 import {
   db, session, collection, doc, getDoc, onSnapshot, query, where
@@ -422,4 +422,26 @@ export function myOrdersView(main, _args, ctx) {
           }, 'Siparişi iptal et'))
         : null)));
   }, errToast);
+}
+
+// ============================================================
+//  "Siparişiniz hazır" uyarısı (her müşteri sayfasında, uygulama açıkken)
+// ============================================================
+export function startReadyWatcher() {
+  const uid = session.user && session.user.uid;
+  if (!uid) return () => {};
+  let prev = null;
+  return onSnapshot(query(collection(db, 'orders'), where('ownerUid', '==', uid)), (snap) => {
+    const cur = {};
+    snap.docs.forEach((d) => { cur[d.id] = d.data().status; });
+    if (prev) {
+      for (const d of snap.docs) {
+        if (cur[d.id] === 'ready' && prev[d.id] && prev[d.id] !== 'ready') {
+          toast(`🎉 #${d.data().number} numaralı siparişiniz hazır!`, 'ok', 9000);
+          beep();
+        }
+      }
+    }
+    prev = cur;
+  }, () => {});
 }

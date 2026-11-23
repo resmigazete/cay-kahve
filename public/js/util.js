@@ -157,6 +157,7 @@ export function audioReady() { return !!actx && actx.state === 'running'; }
 export function soundOn() { return localStorage.getItem('cay.sound') !== '0'; }
 export function setSound(on) { localStorage.setItem('cay.sound', on ? '1' : '0'); }
 export function beep() {
+  try { if (navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch { /* yoksay */ }
   if (!actx) return;
   try {
     const now = actx.currentTime;
@@ -172,6 +173,5 @@ export function beep() {
       o.start(now + t);
       o.stop(now + t + 0.18);
     });
-    if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
   } catch { /* yoksay */ }
 }
