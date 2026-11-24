@@ -346,3 +346,6 @@ body.is-offline .sticky-head { top: calc(96px + env(safe-area-inset-top, 0px)); 
 .status-strip.s-preparing { background: var(--s-preparing); }
 .status-strip.s-ready { background: var(--s-ready); animation: bannerPulse 1.1s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .status-strip.s-ready { animation: none; } }
+
+.daynote { font-size: 13px; font-weight: 600; color: var(--muted, #5b6b69); margin: 0 2px 8px; }
+.daynote.past { background: #fef3c7; color: #92400e; padding: 8px 12px; border-radius: 10px; }

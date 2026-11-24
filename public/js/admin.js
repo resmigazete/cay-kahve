@@ -249,6 +249,12 @@ function ordersTab(box, P) {
   } });
   const paintSound = () => { soundBtn.textContent = soundOn() ? '🔔 Ses açık' : '🔕 Ses kapalı'; };
   paintSound();
+  const dayNote = h('div', { class: 'daynote' });
+  const paintDay = () => {
+    const isToday = date === P.today();
+    dayNote.className = 'daynote' + (isToday ? '' : ' past');
+    dayNote.textContent = isToday ? `Bugün · ${fmtDay(date)}` : `⚠ Geçmiş gün: ${fmtDay(date)}`;
+  };
   const filters = h('div', { class: 'chips' });
   const summary = h('div');
   const list = h('div', { class: 'board' });
@@ -258,7 +264,8 @@ function ordersTab(box, P) {
       h('button', { class: 'btn sm ghost', onclick: () => { date = P.today(); dateInput.value = date; subscribe(); } }, 'Bugün'),
       dateInput, soundBtn,
       session.isAdmin ? h('button', { class: 'btn sm ghost', style: { color: 'var(--err)' }, onclick: clearDay }, '🗑 Günü temizle') : null),
-    filters, summary, list);
+    dayNote, filters, summary, list);
+  paintDay();
 
   // Deneme kayıtları için: seçili günün tüm siparişlerini siler (yalnızca yönetici).
   async function clearDay() {
@@ -382,6 +389,7 @@ function ordersTab(box, P) {
   }
 
   function subscribe() {
+    paintDay();
     if (unsub) { unsub(); unsub = null; }
     seen = new Set();
     if (date === P.today()) {

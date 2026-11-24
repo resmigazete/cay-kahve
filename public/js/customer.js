@@ -1,5 +1,5 @@
 // Müşteri tarafı ekranları: ana ekran, kimlik, menü, sepet, onay, siparişlerim.
-import { h, toast, modal, fmtTime, avatar, beep } from './util.js';
+import { h, toast, modal, fmtTime, avatar, beep, fmtDay, dayKey } from './util.js';
 import { drinkArt } from './drink-art.js';
 import {
   db, session, collection, doc, getDoc, onSnapshot, query, where
@@ -167,7 +167,7 @@ export function orderView(main, _args, ctx) {
         avatarSlot,
         h('div', {}, h('div', { class: 'muted' }, id.type === 'guest' ? 'Misafir' : 'Merhaba,'), h('div', { class: 'hello-name' }, id.name))),
       h('a', { class: 'btn sm ghost', href: id.type === 'guest' && id.qrId ? `#/g/${id.qrId}` : '#/who' }, 'Değiştir')),
-    banner, strips, usual, chips, grid
+    banner, strips, usual, h('div', { class: 'daynote' }, fmtDay(dayKey())), chips, grid
   );
   document.body.append(bar);
 
