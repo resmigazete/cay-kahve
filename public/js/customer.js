@@ -216,7 +216,7 @@ export function orderView(main, _args, ctx) {
   function renderStrips(open) {
     strips.replaceChildren(...open.slice(0, 3).map((o) => h('a', { class: `status-strip s-${o.status}`, href: '#/my' },
       h('b', {}, `#${o.number} · ${STATUS[o.status].label}`),
-      h('span', {}, o.status === 'ready' ? '🎉 Alabilirsiniz' : (o.items || []).map((i) => `${i.qty} ${i.name}`).join(', ')))));
+      h('span', {}, o.status === 'ready' ? '🍵 Servis ediliyor' : (o.items || []).map((i) => `${i.qty} ${i.name}`).join(', ')))));
   }
 
   function renderBanner() {
