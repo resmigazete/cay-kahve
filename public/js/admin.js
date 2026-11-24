@@ -893,6 +893,12 @@ function settingsTab(box, P) {
     unlockAudio(); setSound(e.target.checked); if (e.target.checked) beep();
   } });
 
+  const waInput = h('input', { class: 'input', type: 'tel', inputmode: 'tel', placeholder: '905321234567' });
+  const waSave = async () => {
+    const v = waInput.value.replace(/\D/g, '');
+    try { await setDoc(doc(db, 'settings', 'app'), { whatsapp: v }, { merge: true }); toast(v ? 'WhatsApp numarası kaydedildi' : 'WhatsApp düğmesi kapatıldı', 'ok'); } catch (e) { errToast(e); }
+  };
+
   const rowSwitch = (input, title, sub) => h('div', { class: 'item-row' },
     h('div', { class: 'txt' }, h('b', {}, title), h('span', { class: 'muted small' }, sub)),
     h('label', { class: 'switch' }, input, h('span', { class: 'slider' })));
@@ -900,6 +906,10 @@ function settingsTab(box, P) {
   box.append(h('div', { class: 'stack', style: { maxWidth: '640px' } },
     rowSwitch(openSwitch, 'Sipariş alımı açık', 'Kapalıyken kimse sipariş veremez (ör. mesai dışı).'),
     rowSwitch(soundSwitch, 'Yeni sipariş sesli uyarısı', 'Bu cihazda geçerlidir. Sayfayı yeniledikten sonra sesin çalması için ekrana bir kez dokunun.'),
+    h('div', { class: 'card stack' },
+      h('b', {}, '💬 Çay ocağı WhatsApp numarası'),
+      h('p', { class: 'muted small', style: { margin: 0 } }, 'Ülke koduyla, boşluksuz yazın (ör. 905321234567). Sipariş sonrası müşteriye "WhatsApp ile haber ver" düğmesi çıkar; mesajı müşteri gönderir. Boş bırakırsanız düğme görünmez.'),
+      waInput, h('button', { class: 'btn alt', onclick: waSave }, 'Kaydet')),
     h('div', { class: 'card stack' },
       h('b', {}, '🌙 Gün sonu'),
       h('p', { class: 'muted small', style: { margin: 0 } }, 'Siparişler gün bazında otomatik arşivlenir ve Siparişler / Raporlar sekmesinden tarihe göre incelenir. İsterseniz bugünden kalan açık (yeni, hazırlanıyor, hazır) siparişleri tek seferde "Teslim edildi" yapabilirsiniz.'),
@@ -922,5 +932,6 @@ function settingsTab(box, P) {
   return onSnapshot(doc(db, 'settings', 'app'), (s) => {
     settings = s.data() || {};
     openSwitch.checked = settings.orderingOpen !== false;
+    if (document.activeElement !== waInput) waInput.value = settings.whatsapp || '';
   }, errToast);
 }

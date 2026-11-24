@@ -381,14 +381,31 @@ export function cartView(main, _args, ctx) {
 export function doneView(main, [orderId], ctx) {
   ctx.setTitle('Sipariş alındı', null);
   const box = h('div', { class: 'success' }, h('div', { class: 'spinner' }, 'Yükleniyor…'));
+  const wa = h('div');
+  let waNo = '';
+  let lastO = null;
+  const paintWa = () => {
+    if (!waNo || !lastO) { wa.replaceChildren(); return; }
+    const o = lastO;
+    const txt = `Merhaba, #${o.number} numaralı siparişim (${o.name}): ` +
+      o.items.map((i) => `${i.qty} ${i.name}${i.option ? ' (' + i.option + ')' : ''}`).join(', ') +
+      (o.note ? `. Not: ${o.note}` : '');
+    wa.replaceChildren(h('a', { class: 'btn big ghost', target: '_blank', rel: 'noopener',
+      href: `https://wa.me/${waNo}?text=${encodeURIComponent(txt)}` }, '💬 Çay ocağına WhatsApp ile haber ver'));
+  };
+  const unsubSet = onSnapshot(doc(db, 'settings', 'app'), (s) => {
+    waNo = String((s.data() || {}).whatsapp || '').replace(/\D/g, ''); paintWa();
+  }, () => {});
   main.append(box,
     h('div', { class: 'stack' },
       h('a', { class: 'btn big', href: '#/my' }, '🧾 Siparişimi takip et'),
       h('a', { class: 'btn big alt', href: '#/order' }, '☕ Yeni sipariş ver'),
-      h('a', { class: 'btn big ghost', href: '#/' }, 'Ana ekran')));
-  return onSnapshot(doc(db, 'orders', orderId), (s) => {
+      h('a', { class: 'btn big ghost', href: '#/' }, 'Ana ekran'),
+      wa));
+  const unsubOrder = onSnapshot(doc(db, 'orders', orderId), (s) => {
     if (!s.exists()) { box.replaceChildren(h('div', { class: 'alert err' }, 'Sipariş bulunamadı.')); return; }
     const o = dataOf(s);
+    lastO = o; paintWa();
     box.replaceChildren(
       h('div', { class: 'check' }, '✅'),
       h('h2', {}, 'Siparişiniz alındı!'),
@@ -398,6 +415,7 @@ export function doneView(main, [orderId], ctx) {
       h('ul', { class: 'items', style: { textAlign: 'left', maxWidth: '320px', margin: '16px auto 0' } },
         o.items.map((i) => h('li', {}, h('b', {}, `${i.qty}×`), ' ', i.name, i.option ? h('span', { class: 'opt-txt' }, ` (${i.option})`) : null))));
   }, errToast);
+  return () => { unsubOrder(); unsubSet(); };
 }
 
 // ============================================================
