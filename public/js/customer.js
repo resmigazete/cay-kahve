@@ -8,6 +8,9 @@ import { STATUS, dataOf, categoryRank, sortDrinks, placeOrder, cancelOwnOrder } 
 import * as store from './store.js';
 import { cart, lineKey } from './store.js';
 
+// Müşteriye gösterilen sade durum etiketleri (görevli ekranı kendi etiketlerini kullanır)
+const CUSTOMER_LABEL = { new: 'Alındı', preparing: 'Hazırlanıyor', ready: 'Servis ediliyor', delivered: 'Teslim edildi', cancelled: 'İptal edildi' };
+
 const errToast = (e) => { console.error(e); toast('Bir sorun oluştu: ' + (e.code || e.message), 'err', 5000); };
 
 // ============================================================
@@ -215,8 +218,8 @@ export function orderView(main, _args, ctx) {
   // Devam eden siparişlerin durumu (menüden ayrılmadan görünsün)
   function renderStrips(open) {
     strips.replaceChildren(...open.slice(0, 3).map((o) => h('a', { class: `status-strip s-${o.status}`, href: '#/my' },
-      h('b', {}, `#${o.number} · ${STATUS[o.status].label}`),
-      h('span', {}, o.status === 'ready' ? '🍵 Servis ediliyor' : (o.items || []).map((i) => `${i.qty} ${i.name}`).join(', ')))));
+      h('b', {}, `#${o.number} · ${CUSTOMER_LABEL[o.status]}`),
+      h('span', {}, (o.items || []).map((i) => `${i.qty} ${i.name}`).join(', ')))));
   }
 
   function renderBanner() {
@@ -391,7 +394,7 @@ export function doneView(main, [orderId], ctx) {
       h('h2', {}, 'Siparişiniz alındı!'),
       h('div', { class: 'muted' }, 'Sipariş numaranız'),
       h('div', { class: 'num' }, '#' + o.number),
-      h('div', {}, h('span', { class: `status s-${o.status}` }, STATUS[o.status].label)),
+      h('div', {}, h('span', { class: `status s-${o.status}` }, CUSTOMER_LABEL[o.status])),
       h('ul', { class: 'items', style: { textAlign: 'left', maxWidth: '320px', margin: '16px auto 0' } },
         o.items.map((i) => h('li', {}, h('b', {}, `${i.qty}×`), ' ', i.name, i.option ? h('span', { class: 'opt-txt' }, ` (${i.option})`) : null))));
   }, errToast);
@@ -415,12 +418,11 @@ export function myOrdersView(main, _args, ctx) {
     list.replaceChildren(...orders.map((o) => h('article', { class: `order s-${o.status}` },
       h('div', { class: 'order-top' },
         h('span', { class: 'order-no' }, '#' + o.number),
-        h('span', { class: `status s-${o.status}` }, STATUS[o.status].label),
+        h('span', { class: `status s-${o.status}` }, CUSTOMER_LABEL[o.status]),
         h('span', { class: 'order-time' }, `${o.dayKey.split('-').reverse().join('.')} ${fmtTime(o.createdAt)}`)),
       h('ul', { class: 'items' }, o.items.map((i) => h('li', {}, h('b', {}, `${i.qty}×`), ' ', i.name,
         i.option ? h('span', { class: 'opt-txt' }, ` (${i.option})`) : null))),
       o.note ? h('div', { class: 'note' }, '📝 ' + o.note) : null,
-      o.status === 'ready' ? h('div', { class: 'alert ok', style: { margin: 0 } }, '🍵 Siparişiniz servis ediliyor!') : null,
       o.status === 'new'
         ? h('div', { class: 'actions' }, h('button', {
             class: 'btn sm danger',
