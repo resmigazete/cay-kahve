@@ -145,6 +145,7 @@ export function orderView(main, _args, ctx) {
   const grid = h('div', { class: 'drinks' });
   const bar = h('div', { class: 'cartbar' });
   const usual = h('div');
+  const strips = h('div', { class: 'strips' });
   let lastOrder = null;
   const isOpen = () => settings.orderingOpen !== false;
 
@@ -163,7 +164,7 @@ export function orderView(main, _args, ctx) {
         avatarSlot,
         h('div', {}, h('div', { class: 'muted' }, id.type === 'guest' ? 'Misafir' : 'Merhaba,'), h('div', { class: 'hello-name' }, id.name))),
       h('a', { class: 'btn sm ghost', href: id.type === 'guest' && id.qrId ? `#/g/${id.qrId}` : '#/who' }, 'Değiştir')),
-    banner, usual, chips, grid
+    banner, strips, usual, chips, grid
   );
   document.body.append(bar);
 
@@ -184,7 +185,9 @@ export function orderView(main, _args, ctx) {
   function renderBar() {
     const n = cart.count();
     bar.replaceChildren(n > 0
-      ? h('a', { class: 'btn big', href: '#/cart' }, `🛒 Sepeti gör (${n} adet) →`)
+      ? h('a', { class: 'btn big cartbtn', href: '#/cart' },
+          h('span', {}, `🛒 Sepeti gör · ${n} adet →`),
+          h('small', {}, cart.all().map((l) => `${l.qty} ${l.name}`).join(', ')))
       : '');
     bar.style.display = n > 0 ? '' : 'none';
   }
@@ -207,6 +210,13 @@ export function orderView(main, _args, ctx) {
       class: 'btn big alt usual',
       onclick: () => { lines.forEach((l) => cart.add(l.d, l.option, l.qty)); location.hash = '#/cart'; }
     }, h('span', {}, '🔁 Her zamanki'), h('small', {}, text)));
+  }
+
+  // Devam eden siparişlerin durumu (menüden ayrılmadan görünsün)
+  function renderStrips(open) {
+    strips.replaceChildren(...open.slice(0, 3).map((o) => h('a', { class: `status-strip s-${o.status}`, href: '#/my' },
+      h('b', {}, `#${o.number} · ${STATUS[o.status].label}`),
+      h('span', {}, o.status === 'ready' ? '🎉 Alabilirsiniz' : (o.items || []).map((i) => `${i.qty} ${i.name}`).join(', ')))));
   }
 
   function renderBanner() {
@@ -295,6 +305,7 @@ export function orderView(main, _args, ctx) {
         mine.sort((a, b) => (b.createdAt?.toMillis?.() ?? Date.now()) - (a.createdAt?.toMillis?.() ?? Date.now()));
         lastOrder = mine[0] || null;
         renderUsual();
+        renderStrips(mine.filter((o) => ['new', 'preparing', 'ready'].includes(o.status)).reverse());
       }, () => {})
     : () => {};
 
