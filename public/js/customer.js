@@ -420,7 +420,7 @@ export function myOrdersView(main, _args, ctx) {
       h('ul', { class: 'items' }, o.items.map((i) => h('li', {}, h('b', {}, `${i.qty}×`), ' ', i.name,
         i.option ? h('span', { class: 'opt-txt' }, ` (${i.option})`) : null))),
       o.note ? h('div', { class: 'note' }, '📝 ' + o.note) : null,
-      o.status === 'ready' ? h('div', { class: 'alert ok', style: { margin: 0 } }, '🎉 Siparişiniz hazır!') : null,
+      o.status === 'ready' ? h('div', { class: 'alert ok', style: { margin: 0 } }, '🍵 Siparişiniz servis ediliyor!') : null,
       o.status === 'new'
         ? h('div', { class: 'actions' }, h('button', {
             class: 'btn sm danger',
@@ -448,7 +448,7 @@ export function startReadyWatcher() {
     if (prev) {
       for (const d of snap.docs) {
         if (cur[d.id] === 'ready' && prev[d.id] && prev[d.id] !== 'ready') {
-          toast(`🎉 #${d.data().number} numaralı siparişiniz hazır!`, 'ok', 9000);
+          toast(`🍵 #${d.data().number} numaralı siparişiniz servis ediliyor!`, 'ok', 9000);
           beep();
         }
       }
