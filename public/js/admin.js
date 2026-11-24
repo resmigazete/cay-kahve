@@ -397,11 +397,16 @@ function ordersTab(box, P) {
 
   subscribe();
   const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
-    photos = {};
-    snap.docs.forEach((d) => { photos[d.id] = d.data().photo || ''; });
-    render();
+    const next = {};
+    snap.docs.forEach((d) => { next[d.id] = d.data().photo || ''; });
+    // Yalnızca fotoğraf gerçekten değiştiyse yeniden çiz (büyük görseller her seferinde çözülmesin)
+    const sig = (m) => Object.keys(m).sort().map((k) => `${k}:${m[k].length}:${m[k].slice(-24)}`).join('|');
+    const changed = sig(next) !== sig(photos);
+    photos = next;
+    if (changed) render();
   }, () => {});
-  const tick = setInterval(render, 30000); // geçen süreleri güncel tut
+  // Geçen süreleri güncel tut: yalnızca açık (bekleyen) sipariş varken yeniden çiz
+  const tick = setInterval(() => { if (orders.some((o) => OPEN_STATUSES.includes(o.status))) render(); }, 30000);
   return () => { clearInterval(tick); if (unsub) unsub(); unsubUsers(); };
 }
 

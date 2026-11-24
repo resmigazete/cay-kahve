@@ -1,6 +1,6 @@
 // Basit PWA servis çalışanı: uygulama kabuğunu önbelleğe alır.
 // Firestore / Auth istekleri asla önbelleğe alınmaz (gerçek zamanlı veri).
-const CACHE = 'cay-kahve-v2';
+const CACHE = 'cay-kahve-v3';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'js/app.js', 'js/firebase.js', 'js/firebase-config.js', 'js/util.js', 'js/data.js',
@@ -27,6 +27,17 @@ self.addEventListener('fetch', (e) => {
   const sameOrigin = url.origin === self.location.origin;
   const staticCdn = /(^|\.)gstatic\.com$|(^|\.)jsdelivr\.net$/.test(url.hostname) && /\.js(\?|$)/.test(url.pathname);
   if (!sameOrigin && !staticCdn) return; // Firestore, Auth vb. doğrudan ağa gider
+
+  // Sürümü sabit (10.14.1) Firebase SDK dosyaları değişmez: önce önbellekten ver, açılışı hızlandırır
+  if (!sameOrigin && /gstatic\.com$/.test(url.hostname) && /\/firebasejs\/\d+\.\d+\.\d+\//.test(url.pathname)) {
+    e.respondWith(
+      caches.match(req).then((hit) => hit || fetch(req).then((res) => {
+        if (res && res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
+        return res;
+      }))
+    );
+    return;
+  }
 
   // Önce ağ, olmazsa önbellek (güncel kod her zaman gelsin)
   e.respondWith(
