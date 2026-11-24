@@ -111,13 +111,17 @@ label.field { display: grid; gap: 6px; font-weight: 600; font-size: .95rem; }
 .alert.ok { background: #e6f6ec; color: #14532d; border: 1px solid #b9e3c8; }
 
 /* ---------- Kategori çipleri ---------- */
-.chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 10px; scrollbar-width: none; }
+.chips {
+  display: flex; gap: 6px; padding: 6px; margin-bottom: 12px; background: #fff; border-radius: 18px;
+  box-shadow: 0 3px 8px rgba(16,48,45,.16), 0 10px 22px rgba(16,48,45,.08);
+  overflow-x: auto; scrollbar-width: none;
+}
 .chips::-webkit-scrollbar { display: none; }
 .chip {
-  flex: 0 0 auto; border: 2px solid var(--line); background: #fff; color: var(--text);
-  padding: 9px 16px; border-radius: 999px; font-weight: 700; cursor: pointer; min-height: 42px;
+  flex: 1 0 auto; text-align: center; border: 0; background: transparent; color: var(--text);
+  padding: 9px 16px; border-radius: 13px; font-weight: 700; cursor: pointer; min-height: 42px;
 }
-.chip.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.chip.on { background: var(--brand); color: #fff; box-shadow: 0 2px 6px rgba(15,118,110,.4); }
 .chip .n { opacity: .75; font-weight: 600; margin-left: 4px; }
 
 /* ---------- İçecek kartları ---------- */
