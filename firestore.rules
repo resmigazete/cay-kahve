@@ -87,6 +87,46 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ---------- Personel çağrıları ----------
+    // Belge kimliği = çağıranın oturum uid'i: kişi başına tek çağrı olur, spam birikmez.
+    // Yeni çağrı: önceki kapanmışsa 30 sn sonra, kapanmamışsa (cevapsız) 5 dk sonra tekrar gönderilebilir.
+    function validCall() {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['ownerUid', 'name', 'customerType', 'qrName', 'message', 'status', 'createdAt'])
+        && d.keys().hasAll(['ownerUid', 'name', 'customerType', 'status', 'createdAt'])
+        && d.ownerUid == request.auth.uid
+        && d.status == 'open'
+        && d.createdAt == request.time
+        && d.customerType in ['user', 'guest']
+        && d.name is string && d.name.size() > 0 && d.name.size() <= 60
+        && (!('qrName' in d) || (d.qrName is string && d.qrName.size() <= 60))
+        && (!('message' in d) || (d.message is string && d.message.size() <= 100));
+    }
+
+    match /calls/{uid} {
+      allow read: if isAdmin() || isStaff() || (signedIn() && request.auth.uid == uid);
+
+      allow create: if signedIn() && request.auth.uid == uid && validCall();
+
+      allow update: if
+        // çağıran: yeni çağrı gönderir (önceki kapandıysa 30 sn, cevapsızsa 5 dk sonra)
+        (signedIn() && request.auth.uid == uid && validCall()
+          && ((resource.data.status in ['done', 'cancelled']
+                && request.time > resource.data.createdAt + duration.value(30, 's'))
+              || request.time > resource.data.createdAt + duration.value(5, 'm')))
+        // çağıran: açık çağrısını iptal eder
+        || (signedIn() && request.auth.uid == uid
+          && resource.data.status == 'open'
+          && request.resource.data.status == 'cancelled'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+        // yönetici / görevli: çağrıyı "ilgilenildi" yapar
+        || ((isAdmin() || isStaff())
+          && request.resource.data.status == 'done'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'handledAt', 'handledBy']));
+
+      allow delete: if isAdmin();
+    }
+
     // ---------- Siparişler ----------
     match /orders/{orderId} {
       // Yönetici ve görevli hepsini, diğerleri yalnızca kendi siparişlerini görür

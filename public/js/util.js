@@ -156,6 +156,30 @@ export function unlockAudio() {
 export function audioReady() { return !!actx && actx.state === 'running'; }
 export function soundOn() { return localStorage.getItem('cay.sound') !== '0'; }
 export function setSound(on) { localStorage.setItem('cay.sound', on ? '1' : '0'); }
+// Personel çağrısı zili: sipariş sesinden ayırt edilsin diye daha uzun, iki notalı "ding-dong" (3 tekrar).
+export function bell() {
+  try { if (navigator.vibrate) navigator.vibrate([300, 120, 300, 120, 300]); } catch { /* yoksay */ }
+  if (!actx) return;
+  try {
+    const now = actx.currentTime;
+    [0, 0.9, 1.8].forEach((rep) => {
+      [[784, 0], [587, 0.34]].forEach(([f, t]) => {
+        const o = actx.createOscillator();
+        const g = actx.createGain();
+        o.type = 'triangle';
+        o.frequency.value = f;
+        const s = now + rep + t;
+        g.gain.setValueAtTime(0.0001, s);
+        g.gain.exponentialRampToValueAtTime(0.55, s + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, s + 0.55);
+        o.connect(g).connect(actx.destination);
+        o.start(s);
+        o.stop(s + 0.6);
+      });
+    });
+  } catch { /* yoksay */ }
+}
+
 export function beep() {
   try { if (navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch { /* yoksay */ }
   if (!actx) return;

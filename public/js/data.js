@@ -1,6 +1,6 @@
 // Ortak veri yardımcıları: durumlar, varsayılan menü, sipariş oluşturma / güncelleme.
 import {
-  auth, db, collection, doc, runTransaction, serverTimestamp, updateDoc
+  auth, db, collection, doc, runTransaction, serverTimestamp, updateDoc, setDoc
 } from './firebase.js';
 import { dayKey } from './util.js';
 
@@ -87,6 +87,34 @@ export function setOrderStatus(orderId, status) {
     status,
     ['times.' + status]: serverTimestamp()
   });
+}
+
+// ---------- Personel çağrısı ----------
+// Belge kimliği = çağıranın uid'i (kişi başına tek çağrı; kurallar tekrarı 30 sn / 5 dk ile sınırlar).
+export function callStaff({ identity, message }) {
+  const user = auth.currentUser;
+  if (!user) throw new Error('Oturum açılamadı');
+  const msg = String(message || '').trim().slice(0, 100);
+  return setDoc(doc(db, 'calls', user.uid), {
+    ownerUid: user.uid,
+    name: identity.name,
+    customerType: identity.type,
+    qrName: identity.qrName || '',
+    ...(msg ? { message: msg } : {}),
+    status: 'open',
+    createdAt: serverTimestamp()
+  });
+}
+
+export function cancelCall() {
+  const user = auth.currentUser;
+  if (!user) return Promise.resolve();
+  return updateDoc(doc(db, 'calls', user.uid), { status: 'cancelled' });
+}
+
+// Yönetici / görevli: çağrıya bakıldı.
+export function answerCall(callId, by) {
+  return updateDoc(doc(db, 'calls', callId), { status: 'done', handledAt: serverTimestamp(), handledBy: by || '' });
 }
 
 // Sipariş sahibi: yalnızca "yeni" siparişini iptal edebilir (güvenlik kuralıyla da zorunlu).

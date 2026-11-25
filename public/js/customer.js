@@ -4,7 +4,7 @@ import { drinkArt } from './drink-art.js';
 import {
   db, session, collection, doc, getDoc, onSnapshot, query, where
 } from './firebase.js';
-import { STATUS, dataOf, categoryRank, sortDrinks, placeOrder, cancelOwnOrder } from './data.js';
+import { STATUS, dataOf, categoryRank, sortDrinks, placeOrder, cancelOwnOrder, callStaff, cancelCall } from './data.js';
 import * as store from './store.js';
 import { cart, lineKey } from './store.js';
 import { today as holidayToday, upcoming as holidayUpcoming } from './resmi-tatiller.js';
@@ -52,6 +52,8 @@ export function homeView(main, _args, ctx) {
     h('div', { class: 'stack' },
       h('a', { class: 'tile primary', href: id ? '#/order' : '#/who' },
         h('span', { class: 'ico' }, '☕'), h('span', {}, 'İçecek siparişi ver', h('small', {}, 'Çay, kahve ve diğer içecekler'))),
+      h('a', { class: 'tile', href: id ? '#/call' : '#/who', onclick: (e) => { if (id) { e.preventDefault(); callModal(id); } } },
+        h('span', { class: 'ico' }, '🛎️'), h('span', {}, 'Personel çağır', h('small', {}, 'Bir şey lazımsa zil çalar, kısa mesaj yazabilirsin'))),
       h('a', { class: 'tile', href: '#/my' },
         h('span', { class: 'ico' }, '🧾'), h('span', {}, 'Siparişlerim', h('small', {}, 'Siparişinin durumunu takip et'))),
       h('a', { class: 'tile', href: '#/admin' },
@@ -63,6 +65,80 @@ export function homeView(main, _args, ctx) {
     const d = s.data() || {};
     banner.replaceChildren(d.orderingOpen === false ? h('div', { class: 'alert warn' }, '⛔ Şu anda sipariş alınmıyor.') : '');
   }, () => {});
+}
+
+// ============================================================
+//  PERSONEL ÇAĞIR (zil + kısa mesaj)
+// ============================================================
+const QUICK_CALLS = ['Çay/kahve alabilir miyim?', 'Bardakları toplar mısınız?', 'Su lazım', 'Yardım lazım'];
+const CALL_COOLDOWN = 30 * 1000;       // kapanmış çağrıdan sonra
+const CALL_RESEND_OPEN = 5 * 60 * 1000; // cevapsız çağrıyı tekrar göndermek için
+
+function callModal(id) {
+  let call = null;
+  let tick = null;
+  let unsub = () => {};
+  const input = h('input', { class: 'input', maxlength: '100', placeholder: 'Kısa mesaj (isteğe bağlı)', autocomplete: 'off' });
+  const info = h('div');
+  const sendBtn = h('button', { class: 'btn big', type: 'button' }, '🛎️ Çağır');
+  const cancelBtn = h('button', { class: 'btn sm ghost', type: 'button' }, 'Çağrıyı iptal et');
+  const chips = h('div', { class: 'chips' }, ...QUICK_CALLS.map((t) => h('button', {
+    class: 'chip', type: 'button', onclick: () => { input.value = t; input.focus(); }
+  }, t)));
+
+  const ageMs = () => (call && call.createdAt ? Date.now() - toMs(call.createdAt) : Infinity);
+  const toMs = (t) => (t && t.toMillis ? t.toMillis() : Date.now());
+
+  function paint() {
+    const st = call && call.status;
+    const age = ageMs();
+    let wait = 0;
+    if (st === 'open') {
+      info.replaceChildren(h('div', { class: 'alert warn' }, '⏳ Çağrınız iletildi. Personel ilgilenecek.'));
+      wait = Math.max(0, CALL_RESEND_OPEN - age);
+    } else if (st === 'done') {
+      info.replaceChildren(h('div', { class: 'alert ok' }, '✅ Personel ilgilendi.'));
+      wait = Math.max(0, CALL_COOLDOWN - age);
+    } else {
+      info.replaceChildren();
+      if (st === 'cancelled') wait = Math.max(0, CALL_COOLDOWN - age);
+    }
+    cancelBtn.style.display = st === 'open' ? '' : 'none';
+    sendBtn.disabled = wait > 0;
+    const s = Math.ceil(wait / 1000);
+    sendBtn.textContent = wait > 0
+      ? (st === 'open' ? `Tekrar çağır (${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')})` : `Biraz bekleyin (${s} sn)`)
+      : (st === 'open' ? '🛎️ Tekrar çağır' : '🛎️ Çağır');
+  }
+
+  sendBtn.onclick = async () => {
+    sendBtn.disabled = true;
+    try {
+      await callStaff({ identity: id, message: input.value });
+      input.value = '';
+      toast('Çağrı iletildi', 'ok');
+    } catch (e) {
+      if (e && e.code === 'permission-denied') toast('Çok sık çağırdınız, biraz bekleyip tekrar deneyin', 'err', 5000);
+      else errToast(e);
+    }
+    paint();
+  };
+  cancelBtn.onclick = async () => { try { await cancelCall(); } catch (e) { errToast(e); } };
+
+  const uid = session.user && session.user.uid;
+  if (uid) {
+    unsub = onSnapshot(doc(db, 'calls', uid), (s) => {
+      call = s.exists() ? s.data({ serverTimestamps: 'estimate' }) : null;
+      paint();
+    }, () => {});
+  }
+  tick = setInterval(paint, 1000);
+  paint();
+
+  modal('🛎️ Personel çağır', h('div', { class: 'stack' },
+    h('p', { class: 'muted', style: { margin: 0 } }, `${id.name}${id.qrName ? ' · ' + id.qrName : ''} olarak çağrılacak. Personelin ekranında zil çalar.`),
+    info, chips, input, sendBtn, cancelBtn
+  ), { onClose: () => { clearInterval(tick); unsub(); } });
 }
 
 // ============================================================
@@ -480,7 +556,7 @@ export function startReadyWatcher() {
   const uid = session.user && session.user.uid;
   if (!uid) return () => {};
   let prev = null;
-  return onSnapshot(query(collection(db, 'orders'), where('ownerUid', '==', uid)), (snap) => {
+  const stopOrders = onSnapshot(query(collection(db, 'orders'), where('ownerUid', '==', uid)), (snap) => {
     const cur = {};
     snap.docs.forEach((d) => { cur[d.id] = d.data().status; });
     if (prev) {
@@ -493,4 +569,17 @@ export function startReadyWatcher() {
     }
     prev = cur;
   }, () => {});
+
+  // Personel çağrısı yanıtlanınca (açık → ilgilenildi) haber ver
+  let prevCall = null;
+  const stopCall = onSnapshot(doc(db, 'calls', uid), (s) => {
+    const st = s.exists() ? s.data().status : null;
+    if (prevCall === 'open' && st === 'done') {
+      toast('🛎️ Personel ilgileniyor', 'ok', 7000);
+      beep();
+    }
+    prevCall = st;
+  }, () => {});
+
+  return () => { stopOrders(); stopCall(); };
 }

@@ -6,11 +6,11 @@ import {
 } from './firebase.js';
 import {
   h, toast, modal, copyText, downloadBlob, loadScript, dayKey, addDays, fmtTime, fmtDay, fmtDayShort,
-  minutesBetween, durText, toDate, beep, soundOn, setSound, unlockAudio, resizeImage, avatar
+  minutesBetween, durText, toDate, beep, bell, soundOn, setSound, unlockAudio, resizeImage, avatar
 } from './util.js';
 import { drinkArt } from './drink-art.js';
 import {
-  STATUS, FLOW, OPEN_STATUSES, dataOf, sortDrinks, categoryRank, DEFAULT_DRINKS, setOrderStatus
+  STATUS, FLOW, OPEN_STATUSES, dataOf, sortDrinks, categoryRank, DEFAULT_DRINKS, setOrderStatus, answerCall
 } from './data.js';
 import { computeStats, itemsText, orderDrinkCount } from './stats.js';
 import { drawQr } from './qr.js';
@@ -105,7 +105,48 @@ function panel(main, startTab) {
   const tabsBar = h('div', { class: 'tabs' });
   const banner = h('button', { class: 'new-banner hidden', type: 'button', onclick: () => { switchTab('orders'); window.scrollTo(0, 0); } });
   const body = h('div');
-  main.append(h('div', { class: 'sticky-head' }, banner, tabsBar), body);
+  const callBox = h('div', { class: 'call-box' });
+  main.append(h('div', { class: 'sticky-head' }, callBox, banner, tabsBar), body);
+
+  // ---- Personel çağrıları (müşteri "Personel çağır" dediğinde zil + kısa mesaj) ----
+  const CALL_STALE = 3 * 60 * 60 * 1000; // 3 saatten eski cevapsız çağrılar ne çalar ne gösterilir
+  let openCalls = [];
+  let firstCalls = true;
+  let unsubCalls = null;
+
+  function renderCalls() {
+    callBox.replaceChildren(...openCalls.map((c) => h('div', { class: 'call-row' },
+      h('div', { class: 'call-txt' },
+        h('b', {}, `🛎️ ${c.name}${c.qrName ? ' · ' + c.qrName : ''}`),
+        c.message ? h('div', { class: 'call-msg' }, c.message) : null,
+        h('small', {}, `${fmtTime(c.createdAt)} · ${durText(minutesBetween(c.createdAt, new Date()))} önce`)),
+      h('button', { class: 'btn sm', type: 'button', onclick: async (e) => {
+        e.currentTarget.disabled = true;
+        try { await answerCall(c.id, session.isAdmin ? 'Yönetici' : session.staffName); } catch (err) { errToast(err); e.currentTarget.disabled = false; }
+      } }, '✓ İlgilendim'))));
+  }
+
+  function startCalls() {
+    unsubCalls = onSnapshot(query(collection(db, 'calls'), where('status', '==', 'open')), (snap) => {
+      const now = Date.now();
+      openCalls = snap.docs.map(dataOf)
+        .filter((c) => now - (toDate(c.createdAt)?.getTime() ?? now) < CALL_STALE)
+        .sort((a, b) => (toDate(a.createdAt)?.getTime() ?? 0) - (toDate(b.createdAt)?.getTime() ?? 0));
+      let ring = firstCalls && openCalls.length > 0;
+      if (!firstCalls) {
+        for (const ch of snap.docChanges()) {
+          if ((ch.type === 'added' || ch.type === 'modified') && !ch.doc.metadata.hasPendingWrites) {
+            const c = dataOf(ch.doc);
+            toast(`🛎️ Personel çağrısı: ${c.name}${c.message ? ' — ' + c.message : ''}`, 'new', 8000);
+            ring = true;
+          }
+        }
+      }
+      firstCalls = false;
+      if (ring && soundOn()) bell();
+      renderCalls();
+    }, errToast);
+  }
 
   const P = {
     today: () => today,
@@ -194,10 +235,17 @@ function panel(main, startTab) {
   let flip = false;
   const titleTimer = setInterval(() => {
     const n = newCount();
-    if (n > 0) { flip = !flip; document.title = flip ? `🔔 (${n}) Yeni sipariş` : baseTitle; } else { document.title = baseTitle; }
+    const calls = openCalls.length;
+    if (calls > 0 || n > 0) {
+      flip = !flip;
+      const alert = calls > 0 ? `🛎️ Personel çağrısı${calls > 1 ? ` (${calls})` : ''}` : `🔔 (${n}) Yeni sipariş`;
+      document.title = flip ? alert : baseTitle;
+    } else { document.title = baseTitle; }
   }, 1000);
 
   const alarmTimer = setInterval(() => { if (soundOn() && newCount() > 0) beep(); }, 30000);
+  // Cevaplanmayan personel çağrısı varken zil her 20 saniyede bir tekrar çalar.
+  const callTimer = setInterval(() => { renderCalls(); if (soundOn() && openCalls.length > 0) bell(); }, 20000);
 
   // Panel açıkken ekran kararmasın (sipariş kaçmasın). Destek yoksa sessizce atlanır.
   let wake = null;
@@ -214,12 +262,15 @@ function panel(main, startTab) {
   lockScreen();
 
   startToday();
+  startCalls();
   renderTabs();
   mountTab();
 
   return () => {
     clearInterval(dayTimer);
     clearInterval(alarmTimer);
+    clearInterval(callTimer);
+    if (unsubCalls) unsubCalls();
     clearInterval(titleTimer);
     document.title = baseTitle;
     document.removeEventListener('visibilitychange', onVisible);
