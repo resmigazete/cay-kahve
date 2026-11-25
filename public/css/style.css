@@ -369,7 +369,7 @@ body.is-offline .sticky-head { top: calc(96px + env(safe-area-inset-top, 0px)); 
 .call-row .call-msg { font-weight: 700; overflow-wrap: anywhere; }
 .call-row small { opacity: .92; font-size: .85rem; }
 .call-row .btn { background: #fff; color: #b91c1c; border-color: #fff; flex: none; font-weight: 800; padding: 12px 14px; }
-.call-row .bell { display: inline-block; transform-origin: 50% 10%; animation: bellRing .8s ease-in-out infinite; }
+.call-row .bell { display: inline-flex; vertical-align: middle; background: #fff; border-radius: 50%; padding: 4px; margin-right: 4px; transform-origin: 50% 10%; animation: bellRing .8s ease-in-out infinite; }
 @keyframes callPulse { 0%, 100% { background: #dc2626; box-shadow: 0 0 0 0 rgba(220,38,38,.7), 0 6px 18px rgba(185,28,28,.45); } 50% { background: #b91c1c; box-shadow: 0 0 0 10px rgba(220,38,38,0), 0 6px 18px rgba(185,28,28,.45); } }
 @keyframes bellRing { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(18deg); } 30% { transform: rotate(-16deg); } 45% { transform: rotate(12deg); } 60% { transform: rotate(-8deg); } 75% { transform: rotate(4deg); } }
 @media (prefers-reduced-motion: reduce) { .call-row, .call-row .bell { animation: none; } }

@@ -156,6 +156,23 @@ export function unlockAudio() {
 export function audioReady() { return !!actx && actx.state === 'running'; }
 export function soundOn() { return localStorage.getItem('cay.sound') !== '0'; }
 export function setSound(on) { localStorage.setItem('cay.sound', on ? '1' : '0'); }
+// Kırmızı zil simgesi (emoji rengi cihaza göre değiştiği için SVG). outline=true: koyu/renkli zeminlerde beyaz çerçeve.
+export function redBell(size = 24, outline = false) {
+  const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  s.setAttribute('viewBox', '0 0 32 32');
+  s.setAttribute('width', String(size));
+  s.setAttribute('height', String(size));
+  s.setAttribute('aria-hidden', 'true');
+  s.style.verticalAlign = 'middle';
+  s.style.flex = 'none';
+  const o = outline ? ' stroke="#fff" stroke-width="2" paint-order="stroke" stroke-linejoin="round"' : '';
+  s.innerHTML = `<circle cx="16" cy="6.5" r="2.4" fill="#991b1b"${o}/>`
+    + `<path d="M5 22a11 11 0 0 1 22 0z" fill="#dc2626"${o}/>`
+    + '<path d="M9.5 19.5a7 7 0 0 1 4.6-5.6" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1.8" stroke-linecap="round"/>'
+    + `<rect x="3" y="22" width="26" height="4.2" rx="2.1" fill="#991b1b"${o}/>`;
+  return s;
+}
+
 // Personel çağrısı zili: sipariş sesinden (kısa, tiz "bip-bip-bip") açıkça ayrılsın diye
 // gerçek bir kapı zili gibi tınlar: alçak, çan tınılı, uzun yankılı "dııng-dooong" (2 tekrar, ~3 sn).
 export function bell() {

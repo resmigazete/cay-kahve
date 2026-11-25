@@ -1,5 +1,5 @@
 // Müşteri tarafı ekranları: ana ekran, kimlik, menü, sepet, onay, siparişlerim.
-import { h, toast, modal, fmtTime, avatar, beep, fmtDay, dayKey } from './util.js';
+import { h, toast, modal, fmtTime, avatar, beep, fmtDay, dayKey, redBell } from './util.js';
 import { drinkArt } from './drink-art.js';
 import {
   db, session, collection, doc, getDoc, onSnapshot, query, where
@@ -54,7 +54,7 @@ export function homeView(main, _args, ctx) {
         h('span', { class: 'ico' }, '☕'), h('span', {}, 'İçecek siparişi ver', h('small', {}, 'Çay, kahve ve diğer içecekler'))),
       // Personel çağırma yalnızca sabit kullanıcılara açık (misafirlere gösterilmez)
       id && id.type === 'guest' ? null : h('a', { class: 'tile', href: id ? '#/call' : '#/who', onclick: (e) => { if (id) { e.preventDefault(); callModal(id); } } },
-        h('span', { class: 'ico' }, redBell()), h('span', {}, 'Personel çağır', h('small', {}, 'Bir şey lazımsa zil çalar, kısa mesaj yazabilirsin'))),
+        h('span', { class: 'ico' }, redBell(44)), h('span', {}, 'Personel çağır', h('small', {}, 'Bir şey lazımsa zil çalar, kısa mesaj yazabilirsin'))),
       h('a', { class: 'tile', href: '#/my' },
         h('span', { class: 'ico' }, '🧾'), h('span', {}, 'Siparişlerim', h('small', {}, 'Siparişinin durumunu takip et'))),
       h('a', { class: 'tile', href: '#/admin' },
@@ -71,20 +71,6 @@ export function homeView(main, _args, ctx) {
 // ============================================================
 //  PERSONEL ÇAĞIR (zil + kısa mesaj)
 // ============================================================
-// Ana ekran zil simgesi: emoji rengi cihaza göre değiştiği için her telefonda aynı görünen kırmızı SVG.
-function redBell() {
-  const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  s.setAttribute('viewBox', '0 0 32 32');
-  s.setAttribute('width', '44');
-  s.setAttribute('height', '44');
-  s.setAttribute('aria-hidden', 'true');
-  s.innerHTML = '<circle cx="16" cy="6.5" r="2.4" fill="#991b1b"/>'
-    + '<path d="M5 22a11 11 0 0 1 22 0z" fill="#dc2626"/>'
-    + '<path d="M9.5 19.5a7 7 0 0 1 4.6-5.6" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1.8" stroke-linecap="round"/>'
-    + '<rect x="3" y="22" width="26" height="4.2" rx="2.1" fill="#991b1b"/>';
-  return s;
-}
-
 const QUICK_CALLS = ['Çay/kahve alabilir miyim?', 'Bardakları toplar mısınız?', 'Su lazım', 'Yardım lazım'];
 const CALL_COOLDOWN = 30 * 1000;       // kapanmış çağrıdan sonra
 const CALL_RESEND_OPEN = 5 * 60 * 1000; // cevapsız çağrıyı tekrar göndermek için
@@ -95,7 +81,7 @@ function callModal(id) {
   let unsub = () => {};
   const input = h('input', { class: 'input', maxlength: '100', placeholder: 'Kısa mesaj (isteğe bağlı)', autocomplete: 'off' });
   const info = h('div');
-  const sendBtn = h('button', { class: 'btn big', type: 'button' }, '🛎️ Çağır');
+  const sendBtn = h('button', { class: 'btn big', type: 'button' });
   const cancelBtn = h('button', { class: 'btn sm ghost', type: 'button' }, 'Çağrıyı iptal et');
   const chips = h('div', { class: 'chips' }, ...QUICK_CALLS.map((t) => h('button', {
     class: 'chip', type: 'button', onclick: () => { input.value = t; input.focus(); }
@@ -121,9 +107,11 @@ function callModal(id) {
     cancelBtn.style.display = st === 'open' ? '' : 'none';
     sendBtn.disabled = wait > 0;
     const s = Math.ceil(wait / 1000);
-    sendBtn.textContent = wait > 0
-      ? (st === 'open' ? `Tekrar çağır (${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')})` : `Biraz bekleyin (${s} sn)`)
-      : (st === 'open' ? '🛎️ Tekrar çağır' : '🛎️ Çağır');
+    if (wait > 0) {
+      sendBtn.replaceChildren(st === 'open' ? `Tekrar çağır (${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')})` : `Biraz bekleyin (${s} sn)`);
+    } else {
+      sendBtn.replaceChildren(redBell(26, true), st === 'open' ? ' Tekrar çağır' : ' Çağır');
+    }
   }
 
   sendBtn.onclick = async () => {
@@ -150,7 +138,7 @@ function callModal(id) {
   tick = setInterval(paint, 1000);
   paint();
 
-  modal('🛎️ Personel çağır', h('div', { class: 'stack' },
+  modal(h('span', { style: { display: 'inline-flex', alignItems: 'center', gap: '8px' } }, redBell(30), 'Personel çağır'), h('div', { class: 'stack' },
     h('p', { class: 'muted', style: { margin: 0 } }, `${id.name}${id.qrName ? ' · ' + id.qrName : ''} olarak çağrılacak. Personelin ekranında zil çalar.`),
     info, chips, input, sendBtn, cancelBtn
   ), { onClose: () => { clearInterval(tick); unsub(); } });
@@ -590,7 +578,7 @@ export function startReadyWatcher() {
   const stopCall = onSnapshot(doc(db, 'calls', uid), (s) => {
     const st = s.exists() ? s.data().status : null;
     if (prevCall === 'open' && st === 'done') {
-      toast('🛎️ Personel ilgileniyor', 'ok', 7000);
+      toast(h('span', {}, redBell(22, true), ' Personel ilgileniyor'), 'ok', 7000);
       beep();
     }
     prevCall = st;
