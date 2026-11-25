@@ -1,10 +1,10 @@
 // Basit PWA servis çalışanı: uygulama kabuğunu önbelleğe alır.
 // Firestore / Auth istekleri asla önbelleğe alınmaz (gerçek zamanlı veri).
-const CACHE = 'cay-kahve-v4';
+const CACHE = 'cay-kahve-v5';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'js/app.js', 'js/firebase.js', 'js/firebase-config.js', 'js/util.js', 'js/data.js',
-  'js/drink-art.js', 'js/version.js', 'js/store.js', 'js/customer.js', 'js/admin.js', 'js/stats.js', 'js/qr.js',
+  'js/drink-art.js', 'js/version.js', 'js/store.js', 'js/customer.js', 'js/onemli-gunler.js', 'js/admin.js', 'js/stats.js', 'js/qr.js',
   'icons/icon-192.png', 'icons/icon-512.png'
 ];
 

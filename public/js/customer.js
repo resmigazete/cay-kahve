@@ -7,6 +7,7 @@ import {
 import { STATUS, dataOf, categoryRank, sortDrinks, placeOrder, cancelOwnOrder } from './data.js';
 import * as store from './store.js';
 import { cart, lineKey } from './store.js';
+import { today as importantToday, upcoming as importantUpcoming } from './onemli-gunler.js';
 
 // Müşteriye gösterilen sade durum etiketleri (görevli ekranı kendi etiketlerini kullanır)
 const CUSTOMER_LABEL = { new: 'Alındı', preparing: 'Hazırlanıyor', ready: 'Servis ediliyor', delivered: 'Teslim edildi', cancelled: 'İptal edildi' };
@@ -16,6 +17,24 @@ const errToast = (e) => { console.error(e); toast('Bir sorun oluştu: ' + (e.cod
 // ============================================================
 //  ANA EKRAN
 // ============================================================
+// Sağlık Takvimi'ndeki önemli günler: bugünün günü/haftası/ayı ve yaklaşanlar (yoksa kart çıkmaz)
+function importantDaysCard() {
+  const now = new Date();
+  const items = importantToday(now);
+  const soon = importantUpcoming(now, 7, 3);
+  if (!items.length && !soon.length) return null;
+  const KIND = { tatil: 'Resmî tatil', hafta: 'Hafta', ay: 'Ay' };
+  const main = items.filter((i) => i.kind === 'tatil' || i.kind === 'gun');
+  const longer = items.filter((i) => i.kind === 'hafta' || i.kind === 'ay');
+  return h('div', { class: 'card special' + (items.some((i) => i.tatil) ? ' holiday' : '') },
+    items.length ? h('div', { class: 'special-head' }, '🗓️ Bugün') : null,
+    ...main.map((i) => h('div', { class: 'special-main' }, i.name)),
+    ...longer.map((i) => h('div', { class: 'special-sub' }, h('span', { class: 'special-tag' }, KIND[i.kind]), i.name)),
+    soon.length ? h('div', { class: 'special-soon' },
+      h('div', { class: 'special-head small' }, 'Yaklaşan'),
+      ...soon.map((i) => h('div', {}, h('b', {}, i.label), ' · ' + i.name))) : null);
+}
+
 export function homeView(main, _args, ctx) {
   ctx.setTitle(null, null);
   const id = store.getIdentity();
@@ -29,8 +48,10 @@ export function homeView(main, _args, ctx) {
           id.type === 'guest' ? 'Adı değiştir' : 'Kişiyi değiştir'))
     : null;
 
+  const special = importantDaysCard();
+
   main.append(
-    banner, ...(who ? [who] : []),
+    banner, ...(special ? [special] : []), ...(who ? [who] : []),
     h('div', { class: 'stack' },
       h('a', { class: 'tile primary', href: id ? '#/order' : '#/who' },
         h('span', { class: 'ico' }, '☕'), h('span', {}, 'İçecek siparişi ver', h('small', {}, 'Çay, kahve ve diğer içecekler'))),
