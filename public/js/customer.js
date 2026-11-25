@@ -155,13 +155,46 @@ export function orderView(main, _args, ctx) {
       }, () => {})
     : () => {};
 
+  // "Her zamanki": sabit kullanıcının bu cihazdaki son siparişi tek dokunuşla sepete eklenir.
+  const usualBox = h('div');
+  let lastOrder = null;
+  const unsubUsual = id.type === 'user' && id.userId && session.user
+    ? onSnapshot(query(collection(db, 'orders'), where('ownerUid', '==', session.user.uid)), (snap) => {
+        const mine = snap.docs.map(dataOf)
+          .filter((o) => o.userId === id.userId && o.status !== 'cancelled' && Array.isArray(o.items) && o.items.length)
+          .sort((a, b) => (b.createdAt?.toMillis?.() ?? Date.now()) - (a.createdAt?.toMillis?.() ?? Date.now()));
+        lastOrder = mine[0] || null;
+        renderUsual();
+      }, () => {})
+    : () => {};
+
+  function renderUsual() {
+    if (!lastOrder || !loaded || !isOpen()) { usualBox.replaceChildren(); return; }
+    // Menüden kalkmış veya pasife alınmış içecekler atlanır
+    const lines = lastOrder.items
+      .map((item) => ({ item, drink: drinks.find((d) => d.id === item.drinkId) || drinks.find((d) => d.name === item.name) }))
+      .filter((x) => x.drink && x.drink.active !== false);
+    if (!lines.length) { usualBox.replaceChildren(); return; }
+    const text = lines.map(({ item }) => `${item.qty} × ${item.name}${item.option ? ` (${item.option})` : ''}`).join(', ');
+    usualBox.replaceChildren(h('div', { class: 'usual' },
+      h('div', { class: 'usual-txt' }, h('b', {}, '⭐ Her zamanki'), h('span', { class: 'muted small' }, text)),
+      h('button', { class: 'btn sm', onclick: () => {
+        for (const { item, drink } of lines) {
+          const choices = Array.isArray(drink.optionChoices) ? drink.optionChoices : [];
+          const option = choices.length ? (choices.includes(item.option) ? item.option : choices[0]) : '';
+          cart.add(drink, option, item.qty);
+        }
+        location.hash = '#/cart';
+      } }, 'Sepete ekle')));
+  }
+
   main.append(
     h('div', { class: 'row between', style: { marginBottom: '10px' } },
       h('div', { class: 'hello' },
         avatarSlot,
         h('div', {}, h('div', { class: 'muted' }, id.type === 'guest' ? 'Misafir' : 'Merhaba,'), h('div', { class: 'hello-name' }, id.name))),
       h('a', { class: 'btn sm ghost', href: id.type === 'guest' && id.qrId ? `#/g/${id.qrId}` : '#/who' }, 'Değiştir')),
-    banner, chips, grid
+    usualBox, banner, chips, grid
   );
   document.body.append(bar);
 
@@ -227,7 +260,7 @@ export function orderView(main, _args, ctx) {
       h('div', { class: 'act' }, action));
   }
 
-  function refresh() { renderGrid(); renderBar(); }
+  function refresh() { renderGrid(); renderBar(); renderUsual(); }
 
   function openSheet(d) {
     let opt = d.optionChoices[0];
@@ -267,7 +300,7 @@ export function orderView(main, _args, ctx) {
   }, () => {});
 
   renderChips(); renderBanner(); refresh();
-  return () => { unsubDrinks(); unsubSettings(); unsubPhoto(); bar.remove(); };
+  return () => { unsubDrinks(); unsubSettings(); unsubPhoto(); unsubUsual(); bar.remove(); };
 }
 
 // ============================================================

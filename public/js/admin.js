@@ -201,6 +201,12 @@ function ordersTab(box, P) {
   let unsub = null;
   let fresh = new Set();
   let seen = new Set(orders.map((o) => o.id));
+  // Sabit kullanıcıların fotoğrafları (siparişte kimin verdiği tek bakışta görünsün)
+  let photos = {};
+  const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
+    photos = Object.fromEntries(snap.docs.map((d) => [d.id, d.data().photo || '']));
+    render();
+  }, () => {});
 
   const dateInput = h('input', { class: 'input', type: 'date', value: date, max: P.today(),
     onchange: () => { date = dateInput.value || P.today(); subscribe(); } });
@@ -249,6 +255,7 @@ function ordersTab(box, P) {
     };
     return h('article', { class: `order s-${o.status}` + (fresh.has(o.id) ? ' fresh' : '') },
       h('div', { class: 'order-top' },
+        avatar(o.name, o.customerType === 'user' ? photos[o.userId] : '', 40),
         h('span', { class: 'order-no' }, '#' + o.number),
         h('strong', {}, o.name),
         h('span', { class: 'tag ' + (o.customerType === 'guest' ? 'guest' : 'user') },
@@ -297,7 +304,7 @@ function ordersTab(box, P) {
 
   subscribe();
   const tick = setInterval(render, 30000); // geçen süreleri güncel tut
-  return () => { clearInterval(tick); if (unsub) unsub(); };
+  return () => { clearInterval(tick); if (unsub) unsub(); unsubUsers(); };
 }
 
 // ============================================================

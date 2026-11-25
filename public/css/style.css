@@ -241,6 +241,9 @@ label.field { display: grid; gap: 6px; font-weight: 600; font-size: .95rem; }
 .item-row .ico img.avatar { border-radius: 50%; }
 .avatar-btn { padding: 0; border: 0; background: none; cursor: pointer; border-radius: 50%; position: relative; }
 .avatar-btn:focus-visible { outline: 3px solid var(--brand); outline-offset: 2px; }
+.usual { display: flex; align-items: center; gap: 12px; background: #fff7e6; border: 1px solid #f0d9a8; border-radius: 14px; padding: 10px 12px; margin-bottom: 10px; }
+.usual-txt { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.usual-txt span { overflow-wrap: anywhere; }
 .hello { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .hello-name { color: #c62828; font-size: 1.3rem; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
 .group-title { margin: 14px 0 6px; font-size: .9rem; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); font-weight: 800; }
