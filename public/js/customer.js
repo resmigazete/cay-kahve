@@ -59,7 +59,8 @@ export function homeView(main, _args, ctx) {
     : null;
 
   const special = importantDaysCard();
-  const lunch = lunchCard();
+  // Öğle yemeği listesi yalnızca sabit kullanıcılara açık (misafir ve kimliği seçilmemiş cihazlara gösterilmez)
+  const lunch = id && id.type === 'user' ? lunchCard() : null;
 
   main.append(
     banner, ...(special ? [special] : []), ...(lunch ? [lunch] : []), ...(who ? [who] : []),
