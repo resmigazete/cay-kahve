@@ -52,7 +52,8 @@ export function homeView(main, _args, ctx) {
     h('div', { class: 'stack' },
       h('a', { class: 'tile primary', href: id ? '#/order' : '#/who' },
         h('span', { class: 'ico' }, '☕'), h('span', {}, 'İçecek siparişi ver', h('small', {}, 'Çay, kahve ve diğer içecekler'))),
-      h('a', { class: 'tile', href: id ? '#/call' : '#/who', onclick: (e) => { if (id) { e.preventDefault(); callModal(id); } } },
+      // Personel çağırma yalnızca sabit kullanıcılara açık (misafirlere gösterilmez)
+      id && id.type === 'guest' ? null : h('a', { class: 'tile', href: id ? '#/call' : '#/who', onclick: (e) => { if (id) { e.preventDefault(); callModal(id); } } },
         h('span', { class: 'ico' }, '🛎️'), h('span', {}, 'Personel çağır', h('small', {}, 'Bir şey lazımsa zil çalar, kısa mesaj yazabilirsin'))),
       h('a', { class: 'tile', href: '#/my' },
         h('span', { class: 'ico' }, '🧾'), h('span', {}, 'Siparişlerim', h('small', {}, 'Siparişinin durumunu takip et'))),

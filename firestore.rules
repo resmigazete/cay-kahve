@@ -97,7 +97,7 @@ service cloud.firestore {
         && d.ownerUid == request.auth.uid
         && d.status == 'open'
         && d.createdAt == request.time
-        && d.customerType in ['user', 'guest']
+        && d.customerType == 'user' // misafirler çağrı gönderemez
         && d.name is string && d.name.size() > 0 && d.name.size() <= 60
         && (!('qrName' in d) || (d.qrName is string && d.qrName.size() <= 60))
         && (!('message' in d) || (d.message is string && d.message.size() <= 100));
