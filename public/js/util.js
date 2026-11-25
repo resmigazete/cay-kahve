@@ -156,26 +156,31 @@ export function unlockAudio() {
 export function audioReady() { return !!actx && actx.state === 'running'; }
 export function soundOn() { return localStorage.getItem('cay.sound') !== '0'; }
 export function setSound(on) { localStorage.setItem('cay.sound', on ? '1' : '0'); }
-// Personel çağrısı zili: sipariş sesinden ayırt edilsin diye daha uzun, iki notalı "ding-dong" (3 tekrar).
+// Personel çağrısı zili: sipariş sesinden (kısa, tiz "bip-bip-bip") açıkça ayrılsın diye
+// gerçek bir kapı zili gibi tınlar: alçak, çan tınılı, uzun yankılı "dııng-dooong" (2 tekrar, ~3 sn).
 export function bell() {
-  try { if (navigator.vibrate) navigator.vibrate([300, 120, 300, 120, 300]); } catch { /* yoksay */ }
+  try { if (navigator.vibrate) navigator.vibrate([500, 150, 500, 150, 500]); } catch { /* yoksay */ }
   if (!actx) return;
   try {
     const now = actx.currentTime;
-    [0, 0.9, 1.8].forEach((rep) => {
-      [[784, 0], [587, 0.34]].forEach(([f, t]) => {
+    // Çan tınısı: temel ses + uyumsuz (inharmonik) üst sesler, uzun sönümle
+    const strike = (freq, start, len) => {
+      [[1, 0.6], [2.76, 0.3], [5.4, 0.12]].forEach(([mul, vol]) => {
         const o = actx.createOscillator();
         const g = actx.createGain();
-        o.type = 'triangle';
-        o.frequency.value = f;
-        const s = now + rep + t;
-        g.gain.setValueAtTime(0.0001, s);
-        g.gain.exponentialRampToValueAtTime(0.55, s + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, s + 0.55);
+        o.type = 'sine';
+        o.frequency.value = freq * mul;
+        g.gain.setValueAtTime(0.0001, start);
+        g.gain.exponentialRampToValueAtTime(vol, start + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, start + len / mul ** 0.35);
         o.connect(g).connect(actx.destination);
-        o.start(s);
-        o.stop(s + 0.6);
+        o.start(start);
+        o.stop(start + len + 0.05);
       });
+    };
+    [0, 1.6].forEach((rep) => {
+      strike(659, now + rep, 1.3);        // "dıııng"
+      strike(494, now + rep + 0.55, 1.3); // "doooong" (daha alçak)
     });
   } catch { /* yoksay */ }
 }
