@@ -1,5 +1,5 @@
 // Müşteri tarafı ekranları: ana ekran, kimlik, menü, sepet, onay, siparişlerim.
-import { h, toast, modal, fmtTime, avatar, beep, fmtDay, dayKey } from './util.js';
+import { h, toast, modal, fmtTime, fmtStamp, avatar, beep, fmtDay, dayKey } from './util.js';
 import { drinkArt } from './drink-art.js';
 import {
   db, session, collection, doc, getDoc, onSnapshot, query, where
@@ -411,6 +411,7 @@ export function doneView(main, [orderId], ctx) {
       h('h2', {}, 'Siparişiniz alındı!'),
       h('div', { class: 'muted' }, 'Sipariş numaranız'),
       h('div', { class: 'num' }, '#' + o.number),
+      h('div', { class: 'muted small' }, fmtStamp(o)),
       h('div', {}, h('span', { class: `status s-${o.status}` }, CUSTOMER_LABEL[o.status])),
       h('ul', { class: 'items', style: { textAlign: 'left', maxWidth: '320px', margin: '16px auto 0' } },
         o.items.map((i) => h('li', {}, h('b', {}, `${i.qty}×`), ' ', i.name, i.option ? h('span', { class: 'opt-txt' }, ` (${i.option})`) : null))));
@@ -437,7 +438,7 @@ export function myOrdersView(main, _args, ctx) {
       h('div', { class: 'order-top' },
         h('span', { class: 'order-no' }, '#' + o.number),
         h('span', { class: `status s-${o.status}` }, CUSTOMER_LABEL[o.status]),
-        h('span', { class: 'order-time' }, `${o.dayKey.split('-').reverse().join('.')} ${fmtTime(o.createdAt)}`)),
+        h('span', { class: 'order-time' }, fmtStamp(o))),
       h('ul', { class: 'items' }, o.items.map((i) => h('li', {}, h('b', {}, `${i.qty}×`), ' ', i.name,
         i.option ? h('span', { class: 'opt-txt' }, ` (${i.option})`) : null))),
       o.note ? h('div', { class: 'note' }, '📝 ' + o.note) : null,

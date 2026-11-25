@@ -5,7 +5,7 @@ import {
   serverTimestamp, writeBatch, signInWithEmailAndPassword, signOut, deleteField, getDoc
 } from './firebase.js';
 import {
-  h, toast, modal, copyText, downloadBlob, loadScript, dayKey, addDays, fmtTime, fmtDay, fmtDayShort,
+  h, toast, modal, copyText, downloadBlob, loadScript, dayKey, addDays, fmtTime, fmtStamp, fmtDay, fmtDayShort,
   minutesBetween, durText, toDate, beep, soundOn, setSound, unlockAudio, resizeImage, avatar
 } from './util.js';
 import { drinkArt } from './drink-art.js';
@@ -349,7 +349,7 @@ function ordersTab(box, P) {
         h('strong', {}, o.name),
         h('span', { class: 'tag ' + (o.customerType === 'guest' ? 'guest' : 'user') },
           o.customerType === 'guest' ? 'Misafir' + (o.qrName ? ` · ${o.qrName}` : '') : 'Sabit'),
-        h('span', { class: 'order-time' }, fmtTime(o.createdAt))),
+        h('span', { class: 'order-time' }, fmtStamp(o))),
       h('ul', { class: 'items' }, (o.items || []).map((i) => h('li', {}, h('b', {}, `${i.qty} ×`), ' ', i.name,
         i.option ? h('span', { class: 'opt-txt' }, ` (${i.option})`) : null))),
       o.note ? h('div', { class: 'note' }, '📝 ' + o.note) : null,

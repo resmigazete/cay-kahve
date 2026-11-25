@@ -71,6 +71,11 @@ export function fmtTime(ts) {
   const d = toDate(ts);
   return d ? d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) : '…';
 }
+// "25.11.2026 14:32" — siparişin tarihi ve saati (dayKey: YYYY-AA-GG)
+export function fmtStamp(o) {
+  const day = o && o.dayKey ? o.dayKey.split('-').reverse().join('.') : '';
+  return `${day} ${fmtTime(o && o.createdAt)}`.trim();
+}
 export function fmtDay(key) {
   const [y, m, d] = key.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' });
