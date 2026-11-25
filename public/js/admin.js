@@ -117,7 +117,7 @@ function panel(main, startTab) {
   function renderCalls() {
     callBox.replaceChildren(...openCalls.map((c) => h('div', { class: 'call-row' },
       h('div', { class: 'call-txt' },
-        h('b', {}, `🛎️ ${c.name}${c.qrName ? ' · ' + c.qrName : ''}`),
+        h('b', {}, h('span', { class: 'bell' }, '🛎️'), ` ${c.name}${c.qrName ? ' · ' + c.qrName : ''}`),
         c.message ? h('div', { class: 'call-msg' }, c.message) : null,
         h('small', {}, `${fmtTime(c.createdAt)} · ${durText(minutesBetween(c.createdAt, new Date()))} önce`)),
       h('button', { class: 'btn sm', type: 'button', onclick: async (e) => {
