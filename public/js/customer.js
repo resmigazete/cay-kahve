@@ -33,16 +33,18 @@ function importantDaysCard() {
       ...soon.map((i) => h('div', {}, h('b', {}, i.label), ' · ' + i.name))) : null);
 }
 
-// Bugünün öğle yemeği (hafta sonu, resmî tatil ya da liste girilmemişse kart çıkmaz)
-function lunchCard() {
+// Bugünün öğle yemeği menüsü (hafta sonu, resmî tatil ya da liste girilmemişse null)
+function todayLunch() {
   const now = new Date();
   const dow = now.getDay();
   if (dow === 0 || dow === 6 || holidayToday(now).some((i) => !i.arife)) return null;
-  const menu = lunchFor(now);
-  if (!menu) return null;
-  return h('div', { class: 'card lunch' },
-    h('div', { class: 'lunch-head' }, h('span', {}, '🍽️ Bugünün öğle yemeği'), menu.cal ? h('span', { class: 'lunch-cal' }, menu.cal) : null),
-    h('ul', { class: 'lunch-list' }, ...menu.items.map((x) => h('li', {}, x))));
+  return lunchFor(now);
+}
+
+function showLunch(menu) {
+  modal('🍽️ Bugünün öğle yemeği', h('div', { class: 'lunch' },
+    h('ul', { class: 'lunch-list' }, ...menu.items.map((x) => h('li', {}, x))),
+    menu.cal ? h('div', { class: 'lunch-foot' }, h('span', { class: 'muted small' }, 'Toplam enerji'), h('span', { class: 'lunch-cal' }, menu.cal)) : null));
 }
 
 export function homeView(main, _args, ctx) {
@@ -50,20 +52,23 @@ export function homeView(main, _args, ctx) {
   const id = store.getIdentity();
   const banner = h('div');
 
+  // Öğle yemeği listesi yalnızca sabit kullanıcılara açık; küçük simgeye dokununca açılır
+  const lunchMenu = id && id.type === 'user' ? todayLunch() : null;
+
   const who = id
     ? h('div', { class: 'card row between', style: { marginBottom: '12px' } },
         h('div', {}, h('div', { class: 'muted small' }, id.type === 'guest' ? 'Misafir olarak' : 'Sabit kullanıcı'),
           h('b', {}, '👋 ' + id.name)),
-        h('a', { class: 'btn sm ghost', href: id.type === 'guest' && id.qrId ? `#/g/${id.qrId}` : '#/who' },
-          id.type === 'guest' ? 'Adı değiştir' : 'Kişiyi değiştir'))
+        h('div', { class: 'row', style: { flexWrap: 'nowrap', gap: '6px' } },
+          lunchMenu ? h('button', { class: 'btn sm ghost lunch-btn', type: 'button', title: 'Bugünün öğle yemeği', 'aria-label': 'Bugünün öğle yemeği', onclick: () => showLunch(lunchMenu) }, '🍽️') : null,
+          h('a', { class: 'btn sm ghost', href: id.type === 'guest' && id.qrId ? `#/g/${id.qrId}` : '#/who' },
+            id.type === 'guest' ? 'Adı değiştir' : 'Kişiyi değiştir')))
     : null;
 
   const special = importantDaysCard();
-  // Öğle yemeği listesi yalnızca sabit kullanıcılara açık (misafir ve kimliği seçilmemiş cihazlara gösterilmez)
-  const lunch = id && id.type === 'user' ? lunchCard() : null;
 
   main.append(
-    banner, ...(special ? [special] : []), ...(lunch ? [lunch] : []), ...(who ? [who] : []),
+    banner, ...(special ? [special] : []), ...(who ? [who] : []),
     h('div', { class: 'stack' },
       h('a', { class: 'tile primary', href: id ? '#/order' : '#/who' },
         h('span', { class: 'ico' }, '☕'), h('span', {}, 'İçecek siparişi ver', h('small', {}, 'Çay, kahve ve diğer içecekler'))),
