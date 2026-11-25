@@ -54,7 +54,7 @@ export function homeView(main, _args, ctx) {
         h('span', { class: 'ico' }, '☕'), h('span', {}, 'İçecek siparişi ver', h('small', {}, 'Çay, kahve ve diğer içecekler'))),
       // Personel çağırma yalnızca sabit kullanıcılara açık (misafirlere gösterilmez)
       id && id.type === 'guest' ? null : h('a', { class: 'tile', href: id ? '#/call' : '#/who', onclick: (e) => { if (id) { e.preventDefault(); callModal(id); } } },
-        h('span', { class: 'ico' }, '🛎️'), h('span', {}, 'Personel çağır', h('small', {}, 'Bir şey lazımsa zil çalar, kısa mesaj yazabilirsin'))),
+        h('span', { class: 'ico' }, redBell()), h('span', {}, 'Personel çağır', h('small', {}, 'Bir şey lazımsa zil çalar, kısa mesaj yazabilirsin'))),
       h('a', { class: 'tile', href: '#/my' },
         h('span', { class: 'ico' }, '🧾'), h('span', {}, 'Siparişlerim', h('small', {}, 'Siparişinin durumunu takip et'))),
       h('a', { class: 'tile', href: '#/admin' },
@@ -71,6 +71,20 @@ export function homeView(main, _args, ctx) {
 // ============================================================
 //  PERSONEL ÇAĞIR (zil + kısa mesaj)
 // ============================================================
+// Ana ekran zil simgesi: emoji rengi cihaza göre değiştiği için her telefonda aynı görünen kırmızı SVG.
+function redBell() {
+  const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  s.setAttribute('viewBox', '0 0 32 32');
+  s.setAttribute('width', '44');
+  s.setAttribute('height', '44');
+  s.setAttribute('aria-hidden', 'true');
+  s.innerHTML = '<circle cx="16" cy="6.5" r="2.4" fill="#991b1b"/>'
+    + '<path d="M5 22a11 11 0 0 1 22 0z" fill="#dc2626"/>'
+    + '<path d="M9.5 19.5a7 7 0 0 1 4.6-5.6" fill="none" stroke="#fff" stroke-opacity=".45" stroke-width="1.8" stroke-linecap="round"/>'
+    + '<rect x="3" y="22" width="26" height="4.2" rx="2.1" fill="#991b1b"/>';
+  return s;
+}
+
 const QUICK_CALLS = ['Çay/kahve alabilir miyim?', 'Bardakları toplar mısınız?', 'Su lazım', 'Yardım lazım'];
 const CALL_COOLDOWN = 30 * 1000;       // kapanmış çağrıdan sonra
 const CALL_RESEND_OPEN = 5 * 60 * 1000; // cevapsız çağrıyı tekrar göndermek için
