@@ -71,7 +71,7 @@ export function homeView(main, _args, ctx) {
 // ============================================================
 //  PERSONEL ÇAĞIR (zil + kısa mesaj)
 // ============================================================
-const QUICK_CALLS = ['Çay/kahve alabilir miyim?', 'Bardakları toplar mısınız?', 'Su lazım', 'Yardım lazım'];
+const QUICK_CALLS = ['Arkadaşlardan biri gelsin', 'Bardakları toplar mısınız?', 'Yardım lazım'];
 const CALL_COOLDOWN = 30 * 1000;       // kapanmış çağrıdan sonra
 const CALL_RESEND_OPEN = 5 * 60 * 1000; // cevapsız çağrıyı tekrar göndermek için
 
