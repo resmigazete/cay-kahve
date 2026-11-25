@@ -8,6 +8,7 @@ import { STATUS, dataOf, categoryRank, sortDrinks, placeOrder, cancelOwnOrder } 
 import * as store from './store.js';
 import { cart, lineKey } from './store.js';
 import { today as holidayToday, upcoming as holidayUpcoming } from './resmi-tatiller.js';
+import { lunchFor } from './yemek-listesi.js';
 
 // Müşteriye gösterilen sade durum etiketleri (görevli ekranı kendi etiketlerini kullanır)
 const CUSTOMER_LABEL = { new: 'Alındı', preparing: 'Hazırlanıyor', ready: 'Servis ediliyor', delivered: 'Teslim edildi', cancelled: 'İptal edildi' };
@@ -32,6 +33,18 @@ function importantDaysCard() {
       ...soon.map((i) => h('div', {}, h('b', {}, i.label), ' · ' + i.name))) : null);
 }
 
+// Bugünün öğle yemeği (hafta sonu, resmî tatil ya da liste girilmemişse kart çıkmaz)
+function lunchCard() {
+  const now = new Date();
+  const dow = now.getDay();
+  if (dow === 0 || dow === 6 || holidayToday(now).some((i) => !i.arife)) return null;
+  const menu = lunchFor(now);
+  if (!menu) return null;
+  return h('div', { class: 'card lunch' },
+    h('div', { class: 'lunch-head' }, h('span', {}, '🍽️ Bugünün öğle yemeği'), menu.cal ? h('span', { class: 'lunch-cal' }, menu.cal) : null),
+    h('ul', { class: 'lunch-list' }, ...menu.items.map((x) => h('li', {}, x))));
+}
+
 export function homeView(main, _args, ctx) {
   ctx.setTitle(null, null);
   const id = store.getIdentity();
@@ -46,9 +59,10 @@ export function homeView(main, _args, ctx) {
     : null;
 
   const special = importantDaysCard();
+  const lunch = lunchCard();
 
   main.append(
-    banner, ...(special ? [special] : []), ...(who ? [who] : []),
+    banner, ...(special ? [special] : []), ...(lunch ? [lunch] : []), ...(who ? [who] : []),
     h('div', { class: 'stack' },
       h('a', { class: 'tile primary', href: id ? '#/order' : '#/who' },
         h('span', { class: 'ico' }, '☕'), h('span', {}, 'İçecek siparişi ver', h('small', {}, 'Çay, kahve ve diğer içecekler'))),
