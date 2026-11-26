@@ -14,6 +14,7 @@ import {
 } from './data.js';
 import { computeStats, itemsText, orderDrinkCount } from './stats.js';
 import { drawQr } from './qr.js';
+import { pushSupport, pushPermission, hasToken, enablePush, refreshPush, releasePush } from './push.js';
 
 const errToast = (e) => { console.error(e); toast('Hata: ' + (e.code || e.message), 'err', 5000); };
 const baseUrl = () => location.href.split('#')[0];
@@ -106,7 +107,34 @@ function panel(main, startTab) {
   const banner = h('button', { class: 'new-banner hidden', type: 'button', onclick: () => { switchTab('orders'); window.scrollTo(0, 0); } });
   const body = h('div');
   const callBox = h('div', { class: 'call-box' });
-  main.append(h('div', { class: 'sticky-head' }, callBox, banner, tabsBar), body);
+  const pushBox = h('div');
+  main.append(h('div', { class: 'sticky-head' }, callBox, banner, pushBox, tabsBar), body);
+
+  // ---- Arka plan bildirimi (ekran kapalıyken de sipariş/çağrı uyarısı) ----
+  function renderPush() {
+    const sup = pushSupport();
+    if (sup === 'not-configured' || sup === 'unsupported') { pushBox.replaceChildren(); return; }
+    if (sup === 'need-install') {
+      pushBox.replaceChildren(h('div', { class: 'alert warn' }, '📲 iPhone\'da ekran kapalıyken bildirim için: Safari\'de Paylaş → "Ana Ekrana Ekle", sonra uygulamayı ana ekrandan açıp giriş yapın.'));
+      return;
+    }
+    if (pushPermission() === 'granted' && hasToken()) { pushBox.replaceChildren(); return; }
+    if (pushPermission() === 'denied') {
+      pushBox.replaceChildren(h('div', { class: 'alert warn' }, '🔕 Bildirim izni engelli. Tarayıcı/telefon ayarlarından bu site için bildirime izin verin, sonra sayfayı yenileyin.'));
+      return;
+    }
+    const btn = h('button', { class: 'btn sm', type: 'button', onclick: async () => {
+      btn.disabled = true;
+      try { await enablePush(); toast('Bildirimler açıldı: ekran kapalıyken de uyarılacaksınız', 'ok', 4000); } catch (e) {
+        if (e.code !== 'push/denied') errToast(e);
+      }
+      renderPush();
+    } }, 'Bildirimleri aç');
+    pushBox.replaceChildren(h('div', { class: 'alert warn', style: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' } },
+      h('span', { style: { flex: '1 1 220px' } }, '📲 Telefon ekranı kapalıyken de yeni sipariş bildirimi almak için bildirimleri açın.'), btn));
+  }
+  renderPush();
+  refreshPush().then(renderPush).catch((e) => console.warn('Bildirim jetonu yenilenemedi', e));
 
   // ---- Personel çağrıları (müşteri "Personel çağır" dediğinde zil + kısa mesaj) ----
   const CALL_STALE = 3 * 60 * 60 * 1000; // 3 saatten eski cevapsız çağrılar ne çalar ne gösterilir
@@ -182,7 +210,7 @@ function panel(main, startTab) {
           }
         } }, '🔑 Şifremi değiştir'),
         h('button', { class: 'tab', onclick: async () => {
-          try { await signOut(auth); } catch (e) { errToast(e); }
+          try { await releasePush(); await signOut(auth); } catch (e) { errToast(e); }
         } }, '🚪 Çıkış')]));
   }
 
@@ -978,7 +1006,7 @@ function settingsTab(box, P) {
     h('div', { class: 'card stack' },
       h('b', {}, '👤 Oturum'),
       h('div', { class: 'muted small' }, session.user && session.user.email ? session.user.email : ''),
-      h('button', { class: 'btn danger', onclick: async () => { try { await signOut(auth); } catch (e) { errToast(e); } } }, 'Çıkış yap'))));
+      h('button', { class: 'btn danger', onclick: async () => { try { await releasePush(); await signOut(auth); } catch (e) { errToast(e); } } }, 'Çıkış yap'))));
 
   return onSnapshot(doc(db, 'settings', 'app'), (s) => {
     settings = s.data() || {};

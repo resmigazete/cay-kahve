@@ -62,6 +62,23 @@ Yayın adresiniz Firebase'de otomatik olarak yetkili alan adıdır. Netlify veya
 4. **QR Kodlar** → "Genel" (veya oda adı) ile QR oluşturun → PNG indirip yazdırın.
 5. Telefonlarda tarayıcı menüsünden **Ana ekrana ekle** (PWA).
 
+## Arka plan bildirimi (ekran kapalıyken)
+
+Görevli/yönetici telefonunun ekranı kapalıyken de yeni sipariş ve personel çağrısı bildirimi gelir (Web Push / FCM).
+Bildirimi `functions/index.js` içindeki Cloud Function gönderir; `public/sw.js` telefonda gösterir.
+
+Bir kez yapılacaklar:
+1. **Blaze (kullandıkça öde) planı**: Cloud Functions bu planı ister. Bu boyutta kullanım ücretsiz kotanın içinde kalır; Console → Kullanım ve faturalandırma'dan geçilir.
+2. Console → Proje ayarları → **Cloud Messaging → Web Push sertifikaları → Anahtar çifti oluştur**. Çıkan genel anahtarı GitHub → Settings → Variables'a **`FIREBASE_VAPID_KEY`** adıyla ekleyin (Secret değil, Variable).
+3. (İsteğe bağlı) Firestore'unuzun bölgesi `europe-west1` değilse Variable olarak **`FUNCTIONS_REGION`** ekleyin (ör. `europe-west3`, `us-central1`).
+4. Hizmet hesabına (`FIREBASE_SERVICE_ACCOUNT`) fonksiyon yayınlama yetkisi gerekir: Google Cloud IAM'de **Cloud Functions Admin** ve **Service Account User** rollerini ekleyin.
+5. `main`'e gönderin; iş akışı fonksiyonu da yayınlar ("Bildirim fonksiyonunu yayınla" adımı).
+
+Her görevli telefonunda: Görevli girişi → üstteki **"Bildirimleri aç"** → izin ver. (Yönetici de aynısını yapabilir.)
+- **iPhone**: önce Safari'de Paylaş → Ana Ekrana Ekle, uygulamayı ana ekrandan açıp giriş yapın (iOS 16.4+).
+- **Android**: Chrome'da çalışır. Pil tasarrufu uygulamayı "kısıtlıyorsa" Ayarlar → Uygulamalar → Chrome (veya yüklenen uygulama) → Pil → "Kısıtlama yok" yapın.
+- Çıkış yapan veya pasife alınan görevlinin cihazı bildirim almaz.
+
 ## Veri yapısı (Firestore)
 
 | Koleksiyon | İçerik |
@@ -73,6 +90,7 @@ Yayın adresiniz Firebase'de otomatik olarak yetkili alan adıdır. Netlify veya
 | `counters/{dayKey}` | `n` — günlük sipariş numarası sayacı |
 | `settings/app` | `orderingOpen` |
 | `admins/{uid}` | yönetici yetkisi (yalnızca Console'dan eklenir) |
+| `pushTokens/{fcmJetonu}` | `uid`, `role`, `name`, `ua`, `updatedAt` — arka plan bildirimi alacak cihazlar |
 | `staff/{uid}` | `name`, `email`, `active`, `createdAt` — görevli yetkisi (yönetici panelinden yönetilir) |
 
 Sipariş durumları: `new` → `preparing` → `ready` → `delivered` (veya `cancelled`).
@@ -87,7 +105,7 @@ Sipariş durumları: `new` → `preparing` → `ready` → `delivered` (veya `ca
 ## Bilinen sınırlar (bilerek basit tutuldu)
 - "Siparişlerim" cihaz/tarayıcı bazlıdır: aynı kişi başka telefondan girerse eski siparişlerini göremez (yeni sipariş verebilir). Bunu aşmak için kişi bazlı gerçek hesap (e-posta/şifre) gerekir.
 - Sabit kullanıcı seçimi şifresizdir (4-5 kişilik güvenilir ofis için tasarlandı). Biri başka bir kişinin adıyla sipariş verebilir; bunu istemiyorsanız kişisel bağlantı kullanımını yaygınlaştırın.
-- Tarayıcı kapalıyken sesli/anlık bildirim gönderilmez (web push eklenmemiştir). Panel açıkken ses çalar; sayfa yenilendikten sonra ses için ekrana bir kez dokunmak gerekir (tarayıcı kuralı).
+- Panel açıkken ses çalar; sayfa yenilendikten sonra ses için ekrana bir kez dokunmak gerekir (tarayıcı kuralı). Ekran kapalıyken/uygulama arka plandayken bildirim için aşağıdaki "Arka plan bildirimi" kurulumu gerekir.
 - QR ve Excel için jsDelivr CDN'i, Firebase için gstatic CDN'i kullanılır (internet gerekir).
 
 ## Dosya yapısı
