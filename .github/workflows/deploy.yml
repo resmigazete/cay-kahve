@@ -56,6 +56,9 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx --yes firebase-tools@13 deploy --only firestore:rules --project "$PROJECT_ID" --non-interactive
           rm -f "$RUNNER_TEMP/sa.json"
 
+      - name: Fonksiyon bağımlılıklarını kur
+        run: npm install --prefix functions
+
       # Arka plan bildirimi için Cloud Function (Blaze planı gerekir). Başarısız olursa site yayını bozulmaz.
       - name: Bildirim fonksiyonunu yayınla
         continue-on-error: true
