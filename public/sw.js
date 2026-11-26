@@ -1,10 +1,10 @@
 // Basit PWA servis çalışanı: uygulama kabuğunu önbelleğe alır.
 // Firestore / Auth istekleri asla önbelleğe alınmaz (gerçek zamanlı veri).
-const CACHE = 'cay-kahve-v5';
+const CACHE = 'cay-kahve-v6';
 const SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/style.css',
   'js/app.js', 'js/firebase.js', 'js/firebase-config.js', 'js/util.js', 'js/data.js',
-  'js/drink-art.js', 'js/version.js', 'js/store.js', 'js/customer.js', 'js/resmi-tatiller.js', 'js/admin.js', 'js/stats.js', 'js/qr.js',
+  'js/drink-art.js', 'js/version.js', 'js/store.js', 'js/customer.js', 'js/resmi-tatiller.js', 'js/admin.js', 'js/stats.js', 'js/qr.js', 'js/push.js',
   'icons/icon-192.png', 'icons/icon-512.png'
 ];
 
@@ -51,4 +51,44 @@ self.addEventListener('fetch', (e) => {
       })
       .catch(() => caches.match(req).then((r) => r || caches.match('index.html')))
   );
+});
+
+// ---------- Arka plan bildirimi (Web Push / FCM) ----------
+// Sunucu yalnızca "data" gönderir; bildirimi burada biz gösteririz. Ekran kapalıyken de çalışır.
+self.addEventListener('push', (e) => {
+  let p = {};
+  try { p = e.data ? e.data.json() : {}; } catch { /* yoksay */ }
+  const d = p.data || p.notification || p;
+  const title = d.title || '☕ Çay-Kahve';
+  e.waitUntil((async () => {
+    // Uygulama ekranda açık ve görünürse zaten sesli uyarı çalıyor: çift ses olmasın
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const visible = wins.some((c) => c.visibilityState === 'visible');
+    await self.registration.showNotification(title, {
+      body: d.body || '',
+      tag: d.tag || undefined,
+      renotify: !!d.tag,
+      icon: 'icons/icon-192.png',
+      badge: 'icons/icon-192.png',
+      vibrate: [400, 150, 400, 150, 400],
+      requireInteraction: true,
+      silent: visible,
+      data: { url: d.url || './#/admin/orders' }
+    });
+  })());
+});
+
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  const url = new URL((e.notification.data && e.notification.data.url) || './#/admin/orders', self.registration.scope).href;
+  e.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of wins) {
+      if (c.url.startsWith(self.registration.scope) && 'focus' in c) {
+        try { await c.focus(); if ('navigate' in c) await c.navigate(url); } catch { /* yoksay */ }
+        return;
+      }
+    }
+    await self.clients.openWindow(url);
+  })());
 });

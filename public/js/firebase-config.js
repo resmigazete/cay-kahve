@@ -11,6 +11,10 @@ export const firebaseConfig = {
   appId: 'YOUR_APP_ID'
 };
 
+// Web Push (FCM) genel anahtarı: Console > Proje ayarları > Cloud Messaging > Web Push sertifikaları > "Anahtar çifti".
+// Boşsa arka plan bildirimi kapalıdır.
+export const VAPID_KEY = '';
+
 // Yönetici e-posta adresi (Firebase Authentication'da oluşturduğunuz kullanıcı).
 // Doldurursanız yönetici girişinde sadece şifre sorulur. Boş bırakırsanız e-posta da sorulur.
 export const ADMIN_EMAIL = '';

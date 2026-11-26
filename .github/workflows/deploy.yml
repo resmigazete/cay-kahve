@@ -17,6 +17,7 @@ jobs:
         env:
           WEB_CONFIG: ${{ secrets.FIREBASE_WEB_CONFIG }}
           ADMIN_EMAIL: ${{ vars.ADMIN_EMAIL }}
+          VAPID_KEY: ${{ vars.FIREBASE_VAPID_KEY }}
         run: |
           node -e '
             const fs = require("fs");
@@ -32,6 +33,7 @@ jobs:
               if (!cfg[k]) { console.error("Eksik alan: " + k); process.exit(1); }
             }
             const out = "export const firebaseConfig = " + JSON.stringify(cfg, null, 2) + ";\n" +
+              "export const VAPID_KEY = " + JSON.stringify((process.env.VAPID_KEY || "").trim()) + ";\n" +
               "export const ADMIN_EMAIL = " + JSON.stringify(process.env.ADMIN_EMAIL || "") + ";\n";
             fs.writeFileSync("public/js/firebase-config.js", out);
             console.log("Ayar yazıldı. projectId:", cfg.projectId);
@@ -52,4 +54,15 @@ jobs:
         run: |
           printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
           GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx --yes firebase-tools@13 deploy --only firestore:rules --project "$PROJECT_ID" --non-interactive
+          rm -f "$RUNNER_TEMP/sa.json"
+
+      # Arka plan bildirimi için Cloud Function (Blaze planı gerekir). Başarısız olursa site yayını bozulmaz.
+      - name: Bildirim fonksiyonunu yayınla
+        continue-on-error: true
+        env:
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PUSH_REGION: ${{ vars.FUNCTIONS_REGION }}
+        run: |
+          printf '%s' "$SA" > "$RUNNER_TEMP/sa.json"
+          GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json" npx --yes firebase-tools@13 deploy --only functions --project "$PROJECT_ID" --non-interactive --force
           rm -f "$RUNNER_TEMP/sa.json"
