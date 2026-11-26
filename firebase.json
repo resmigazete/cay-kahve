@@ -4,7 +4,7 @@
     "indexes": "firestore.indexes.json"
   },
   "functions": [
-    { "source": "functions", "codebase": "default", "runtime": "nodejs20", "ignore": ["node_modules", "*.log"] }
+    { "source": "functions", "codebase": "default", "runtime": "nodejs22", "ignore": ["node_modules", "*.log"] }
   ],
   "hosting": {
     "public": "public",
