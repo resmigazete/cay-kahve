@@ -487,8 +487,11 @@ export function doneView(main, [orderId], ctx) {
     const txt = `Merhaba, #${o.number} numaralı siparişim (${o.name}): ` +
       o.items.map((i) => `${i.qty} ${i.name}${i.option ? ' (' + i.option + ')' : ''}`).join(', ') +
       (o.note ? `. Not: ${o.note}` : '');
-    wa.replaceChildren(h('a', { class: 'btn big ghost', target: '_blank', rel: 'noopener',
-      href: `https://wa.me/${waNo}?text=${encodeURIComponent(txt)}` }, '💬 Çay ocağına WhatsApp ile haber ver'));
+    const a = h('a', { class: 'btn big wa', target: '_blank', rel: 'noopener',
+      href: `https://wa.me/${waNo}?text=${encodeURIComponent(txt)}` });
+    a.innerHTML = '<svg class="wa-ico" viewBox="0 0 24 24" aria-hidden="true"><path fill="#fff" d="M12 3C6.9 3 2.8 6.6 2.8 11c0 2.2 1 4.2 2.7 5.7L4.8 21l4.6-1.7c.8.2 1.7.3 2.6.3 5.1 0 9.2-3.6 9.2-8S17.1 3 12 3z"/><path fill="#16a34a" d="M7.5 8.2l9.2 3.8-9.2 3.8 1.2-3.8z"/></svg>' +
+      '<span class="wa-txt"><b>WhatsApp ile gönder</b><small>Çay ocağına siparişini haber ver</small></span>';
+    wa.replaceChildren(a);
   };
   const unsubSet = onSnapshot(doc(db, 'settings', 'app'), (s) => {
     waNo = String((s.data() || {}).whatsapp || '').replace(/\D/g, ''); paintWa();
