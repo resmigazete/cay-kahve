@@ -71,6 +71,11 @@ body:has(.cartbar) .app-footer { padding-bottom: calc(96px + env(safe-area-inset
 .btn.big { width: 100%; min-height: 60px; font-size: 1.1rem; }
 .btn.alt { background: #fff; color: var(--brand); border: 2px solid var(--brand); }
 .btn.ghost { background: transparent; color: var(--brand); border: 1px solid var(--line); }
+.btn.wa { background: #16a34a; color: #fff; border: 0; justify-content: flex-start; gap: 14px; padding: 10px 18px; min-height: 72px; text-align: left; text-decoration: none; box-shadow: 0 3px 10px rgba(22,163,74,.35); }
+.btn.wa .wa-ico { width: 44px; height: 44px; flex: none; }
+.btn.wa .wa-txt { display: grid; gap: 2px; }
+.btn.wa .wa-txt b { font-size: 1.2rem; }
+.btn.wa .wa-txt small { font-size: .85rem; font-weight: 600; opacity: .95; }
 .btn.danger { background: var(--err); }
 .btn.ok { background: var(--ok); }
 .btn.sm { min-height: 38px; padding: 6px 12px; font-size: .9rem; border-radius: 10px; }
