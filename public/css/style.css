@@ -378,3 +378,4 @@ body.is-offline .sticky-head { top: calc(96px + env(safe-area-inset-top, 0px)); 
 @keyframes callPulse { 0%, 100% { background: #dc2626; box-shadow: 0 0 0 0 rgba(220,38,38,.7), 0 6px 18px rgba(185,28,28,.45); } 50% { background: #b91c1c; box-shadow: 0 0 0 10px rgba(220,38,38,0), 0 6px 18px rgba(185,28,28,.45); } }
 @keyframes bellRing { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(18deg); } 30% { transform: rotate(-16deg); } 45% { transform: rotate(12deg); } 60% { transform: rotate(-8deg); } 75% { transform: rotate(4deg); } }
 @media (prefers-reduced-motion: reduce) { .call-row, .call-row .bell { animation: none; } }
+.past-toggle { width: 100%; margin: 4px 0; }

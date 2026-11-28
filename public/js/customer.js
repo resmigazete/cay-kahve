@@ -528,30 +528,51 @@ export function myOrdersView(main, _args, ctx) {
   const uid = session.user && session.user.uid;
   if (!uid) { list.replaceChildren(h('div', { class: 'empty' }, 'Oturum açılamadı.')); return; }
 
+  // Önceki (teslim edilmiş / iptal edilmiş) siparişler varsayılan olarak gizli; "göster" ile açılır.
+  let showPast = false;
+  const isPast = (o) => o.status === 'delivered' || o.status === 'cancelled';
+  const card = (o) => h('article', { class: `order s-${o.status}` },
+    h('div', { class: 'order-top' },
+      h('span', { class: 'order-no' }, '#' + o.number),
+      h('span', { class: `status s-${o.status}` }, CUSTOMER_LABEL[o.status]),
+      h('span', { class: 'order-time' }, `${o.dayKey.split('-').reverse().join('.')} ${fmtTime(o.createdAt)}`)),
+    h('ul', { class: 'items' }, o.items.map((i) => h('li', {}, h('b', {}, `${i.qty}×`), ' ', i.name,
+      i.option ? h('span', { class: 'opt-txt' }, ` (${i.option})`) : null))),
+    o.note ? h('div', { class: 'note' }, '📝 ' + o.note) : null,
+    o.status === 'new'
+      ? h('div', { class: 'actions' }, h('button', {
+          class: 'btn sm danger',
+          onclick: async () => {
+            if (!confirm('Siparişi iptal etmek istiyor musunuz?')) return;
+            try { await cancelOwnOrder(o.id); toast('Sipariş iptal edildi', 'ok'); } catch (e) {
+              toast('İptal edilemedi. Sipariş hazırlanmaya başlamış olabilir.', 'err', 5000);
+            }
+          }
+        }, 'Siparişi iptal et'))
+      : null);
+
+  let lastOrders = [];
+  function render() {
+    if (!lastOrders.length) { list.replaceChildren(h('div', { class: 'empty' }, 'Henüz siparişiniz yok.')); return; }
+    const active = lastOrders.filter((o) => !isPast(o));
+    const past = lastOrders.filter(isPast);
+    const nodes = active.map(card);
+    if (!active.length) nodes.push(h('div', { class: 'empty' }, 'Devam eden siparişiniz yok.'));
+    if (past.length) {
+      nodes.push(h('button', {
+        class: 'btn ghost past-toggle', type: 'button', 'aria-expanded': String(showPast),
+        onclick: () => { showPast = !showPast; render(); }
+      }, showPast ? 'Önceki siparişleri gizle ▲' : `Önceki siparişleri göster (${past.length}) ▼`));
+      if (showPast) nodes.push(...past.map(card));
+    }
+    list.replaceChildren(...nodes);
+  }
+
   return onSnapshot(query(collection(db, 'orders'), where('ownerUid', '==', uid)), (snap) => {
-    const orders = snap.docs.map(dataOf)
+    lastOrders = snap.docs.map(dataOf)
       .sort((a, b) => (b.createdAt?.toMillis?.() ?? Date.now()) - (a.createdAt?.toMillis?.() ?? Date.now()))
       .slice(0, 30);
-    if (!orders.length) { list.replaceChildren(h('div', { class: 'empty' }, 'Henüz siparişiniz yok.')); return; }
-    list.replaceChildren(...orders.map((o) => h('article', { class: `order s-${o.status}` },
-      h('div', { class: 'order-top' },
-        h('span', { class: 'order-no' }, '#' + o.number),
-        h('span', { class: `status s-${o.status}` }, CUSTOMER_LABEL[o.status]),
-        h('span', { class: 'order-time' }, `${o.dayKey.split('-').reverse().join('.')} ${fmtTime(o.createdAt)}`)),
-      h('ul', { class: 'items' }, o.items.map((i) => h('li', {}, h('b', {}, `${i.qty}×`), ' ', i.name,
-        i.option ? h('span', { class: 'opt-txt' }, ` (${i.option})`) : null))),
-      o.note ? h('div', { class: 'note' }, '📝 ' + o.note) : null,
-      o.status === 'new'
-        ? h('div', { class: 'actions' }, h('button', {
-            class: 'btn sm danger',
-            onclick: async () => {
-              if (!confirm('Siparişi iptal etmek istiyor musunuz?')) return;
-              try { await cancelOwnOrder(o.id); toast('Sipariş iptal edildi', 'ok'); } catch (e) {
-                toast('İptal edilemedi. Sipariş hazırlanmaya başlamış olabilir.', 'err', 5000);
-              }
-            }
-          }, 'Siparişi iptal et'))
-        : null)));
+    render();
   }, errToast);
 }
 
